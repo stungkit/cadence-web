@@ -1,22 +1,44 @@
 <script>
 import { version } from '../package.json';
 import logo from './assets/logo.svg';
-import { FeatureFlag, NotificationBar } from '~components';
 import {
+  ButtonIcon,
+  FeatureFlag,
+  FlexGrid,
+  FlexGridItem,
+  NewsModal,
+  NotificationBar,
+  SettingsModal,
+} from '~components';
+import {
+  DATE_FORMAT_MMM_D_YYYY,
+  DATE_FORMAT_OPTIONS,
   ENVIRONMENT_LIST,
+  LOCAL_STORAGE_NEWS_LAST_VIEWED_AT,
+  LOCAL_STORAGE_SETTINGS,
   NOTIFICATION_TIMEOUT,
   NOTIFICATION_TYPE_SUCCESS,
+  TIME_FORMAT_12,
+  TIME_FORMAT_OPTIONS,
+  TIMEZONE_LOCAL,
+  TIMEZONE_OPTIONS,
 } from '~constants';
 import {
   getEnvironment,
   getEnvironmentList,
   getEnvironmentLocation,
+  getLatestNewsItems,
 } from '~helpers';
 
 export default {
   components: {
+    'button-icon': ButtonIcon,
     'feature-flag': FeatureFlag,
+    'flex-grid': FlexGrid,
+    'flex-grid-item': FlexGridItem,
+    'news-modal': NewsModal,
     'notification-bar': NotificationBar,
+    'settings-modal': SettingsModal,
   },
   data() {
     const { origin } = window.location;
@@ -33,6 +55,8 @@ export default {
           origin,
         }),
       },
+      newsLastUpdated: localStorage.getItem(LOCAL_STORAGE_NEWS_LAST_VIEWED_AT),
+      newsItems: [],
       logo,
       notification: {
         message: '',
@@ -40,15 +64,42 @@ export default {
         type: '',
         timeout: undefined,
       },
+      settings: {
+        dateFormat:
+          localStorage.getItem(LOCAL_STORAGE_SETTINGS.dateFormat) ||
+          DATE_FORMAT_MMM_D_YYYY,
+        dateFormatOptions: DATE_FORMAT_OPTIONS,
+        timeFormat:
+          localStorage.getItem(LOCAL_STORAGE_SETTINGS.timeFormat) ||
+          TIME_FORMAT_12,
+        timeFormatOptions: TIME_FORMAT_OPTIONS,
+        timezone:
+          localStorage.getItem(LOCAL_STORAGE_SETTINGS.timezone) ||
+          TIMEZONE_LOCAL,
+        timezoneOptions: TIMEZONE_OPTIONS,
+      },
     };
   },
   beforeDestroy() {
     clearTimeout(this.notification.timeout);
   },
+  async mounted() {
+    await this.fetchLatestNewsItems();
+
+    if (this.newsItems.length) {
+      this.$modal.show('news-modal');
+    }
+  },
   methods: {
+    async fetchLatestNewsItems() {
+      const { newsLastUpdated } = this;
+      const response = await this.$http('/feed.json');
+
+      this.newsItems = getLatestNewsItems({ newsLastUpdated, response });
+    },
     globalClick(e) {
       // Code required for mocha tests to run correctly without infinite looping.
-      if (e.target.tagName === 'A') {
+      if (window.mocha !== undefined && e.target.tagName === 'A') {
         const href = e.target.getAttribute('href');
 
         if (
@@ -76,6 +127,12 @@ export default {
         search,
       });
     },
+    onNewsDismiss() {
+      localStorage.setItem(
+        LOCAL_STORAGE_NEWS_LAST_VIEWED_AT,
+        this.newsItems[0].date_modified
+      );
+    },
     onNotification({ message, type = NOTIFICATION_TYPE_SUCCESS }) {
       this.notification.message = message;
       this.notification.type = type;
@@ -83,6 +140,17 @@ export default {
     },
     onNotificationClose() {
       this.notification.show = false;
+    },
+    onSettingsChange(values) {
+      for (const key in values) {
+        const value = values[key];
+
+        localStorage.setItem(LOCAL_STORAGE_SETTINGS[key], value);
+        this.settings[key] = value;
+      }
+    },
+    onSettingsClick() {
+      this.$modal.show('settings-modal');
     },
   },
   watch: {
@@ -114,43 +182,77 @@ export default {
       :type="notification.type"
     />
     <header class="top-bar">
-      <a href="/domains" class="logo">
-        <div v-html="logo"></div>
-        <span class="version">{{ version }}</span>
-      </a>
+      <flex-grid align-items="center" width="100%">
+        <flex-grid-item>
+          <a href="/domains" class="logo">
+            <div v-html="logo"></div>
+            <span class="version">{{ version }}</span>
+          </a>
+        </flex-grid-item>
 
-      <feature-flag name="environment-select">
-        <v-select
-          class="environment-select"
-          :on-change="onEnvironmentSelectChange"
-          :options="environment.list"
-          :searchable="false"
-          :value="environment.value"
-        />
-      </feature-flag>
+        <feature-flag name="environment-select">
+          <flex-grid-item>
+            <v-select
+              class="environment-select"
+              :on-change="onEnvironmentSelectChange"
+              :options="environment.list"
+              :searchable="false"
+              :value="environment.value"
+            />
+          </flex-grid-item>
+        </feature-flag>
 
-      <div class="domain" v-if="$route.params.domain">
-        <a
-          class="workflows"
-          :class="{
-            'router-link-active':
-              $route.path === `/domains/${$route.params.domain}/workflows`,
-          }"
-          :href="`/domains/${$route.params.domain}/workflows`"
-        >
-          {{ $route.params.domain }}
-        </a>
-      </div>
-      <div class="detail-view workflow-id" v-if="$route.params.workflowId">
-        <span>{{ $route.params.workflowId }}</span>
-      </div>
-      <div class="detail-view task-list" v-if="$route.params.taskList">
-        <span>{{ $route.params.taskList }}</span>
-      </div>
+        <flex-grid-item v-if="$route.params.domain" margin="15px">
+          <a
+            class="workflows"
+            :class="{
+              'router-link-active':
+                $route.path === `/domains/${$route.params.domain}/workflows`,
+            }"
+            :href="`/domains/${$route.params.domain}/workflows`"
+          >
+            {{ $route.params.domain }}
+          </a>
+        </flex-grid-item>
+
+        <flex-grid-item v-if="$route.params.workflowId">
+          <span>{{ $route.params.workflowId }}</span>
+        </flex-grid-item>
+
+        <flex-grid-item v-if="$route.params.taskList">
+          <span>{{ $route.params.taskList }}</span>
+        </flex-grid-item>
+
+        <flex-grid-item grow="1">
+          <button-icon
+            color="primary"
+            icon="icon_settings"
+            label="SETTINGS"
+            size="30px"
+            style="float: right"
+            @click="onSettingsClick"
+          />
+        </flex-grid-item>
+      </flex-grid>
     </header>
-    <router-view @onNotification="onNotification"></router-view>
+    <router-view
+      :date-format="settings.dateFormat"
+      :time-format="settings.timeFormat"
+      :timezone="settings.timezone"
+      @onNotification="onNotification"
+    ></router-view>
     <modals-container />
     <v-dialog />
+    <news-modal :news-items="newsItems" @before-close="onNewsDismiss" />
+    <settings-modal
+      :date-format="settings.dateFormat"
+      :date-format-options="settings.dateFormatOptions"
+      :time-format="settings.timeFormat"
+      :time-format-options="settings.timeFormatOptions"
+      :timezone="settings.timezone"
+      :timezone-options="settings.timezoneOptions"
+      @onChange="onSettingsChange"
+    />
   </main>
 </template>
 
@@ -200,32 +302,7 @@ header.top-bar
   spacing = 1.3em
   nav-label-color = uber-white-40
   nav-label-font-size = 11px
-  & > div
-    margin-right spacing
-  div.domain
-    flex 0 0 auto
-    &::before
-      content 'DOMAIN'
-      font-size nav-label-font-size
-      font-weight normal
-      vertical-align middle
-      color nav-label-color
-      margin-right spacing
-    a:hover
-      color lighten(uber-blue, 15%)
-    .router-link-active
-      pointer-events none
-    span
-      cursor pointer
-      transition smooth-transition
-      color uber-blue
-    & + div
-      icon('\ea5b')
-      one-liner-ellipsis()
-      &::before
-        display inline-block
-        transform scale(1.5)
-        margin-right spacing
+
   .detail-view span::before
     font-size nav-label-font-size
     color nav-label-color

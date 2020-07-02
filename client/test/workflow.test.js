@@ -13,6 +13,8 @@ describe('Workflow', () => {
     return [
       new Scenario(mochaTest)
         .withDomain('ci-test')
+        .withDomainAuthorization('ci-test', true)
+        .withNewsFeed()
         .withWorkflow(
           extendedOptions.workflowId,
           extendedOptions.runId,
@@ -71,7 +73,7 @@ describe('Workflow', () => {
           moment()
             .startOf('hour')
             .subtract(2, 'minutes')
-            .format('dddd MMMM Do, h:mm:ss a')
+            .format('MMM D, YYYY h:mm:ss A')
         );
         summaryEl.should.not.have.descendant('.close-time');
         summaryEl.should.not.have.descendant('.pending-activities');
@@ -300,7 +302,7 @@ describe('Workflow', () => {
       it('should offer the user to terminate a running workflow, prompting the user for a termination reason', async function test() {
         const [summaryEl] = await summaryTest(this.test);
         const terminateEl = await summaryEl.waitUntilExists(
-          'aside.actions a.terminate'
+          'aside.actions button'
         );
 
         terminateEl.trigger('click');
@@ -312,15 +314,15 @@ describe('Workflow', () => {
           'Are you sure you want to terminate this workflow?'
         );
         confirmTerminateEl.should
-          .contain('a.terminate')
-          .and.contain('a.cancel')
+          .contain('button[name="button-terminate"]')
+          .and.contain('button[name="button-cancel"]')
           .and.contain('input[placeholder="Reason"]');
       });
 
       it('should terminate the workflow with the provided reason', async function test() {
         const [summaryEl, scenario] = await summaryTest(this.test);
 
-        (await summaryEl.waitUntilExists('aside.actions a.terminate')).trigger(
+        (await summaryEl.waitUntilExists('aside.actions button')).trigger(
           'click'
         );
 
@@ -334,7 +336,9 @@ describe('Workflow', () => {
         await Promise.delay(10);
 
         scenario.withWorkflowTermination('example termination');
-        confirmTerminateEl.querySelector('a.terminate').trigger('click');
+        confirmTerminateEl
+          .querySelector('button[name="button-terminate"]')
+          .trigger('click');
         await retry(() =>
           summaryEl.should.not.contain('[data-modal="confirm-termination"]')
         );
@@ -343,12 +347,12 @@ describe('Workflow', () => {
       it('should terminate the workflow without a reason', async function test() {
         const [summaryEl, scenario] = await summaryTest(this.test);
 
-        (await summaryEl.waitUntilExists('aside.actions a.terminate')).trigger(
+        (await summaryEl.waitUntilExists('aside.actions button')).trigger(
           'click'
         );
 
         const terminateEl = await summaryEl.waitUntilExists(
-          '[data-modal="confirm-termination"] a.terminate'
+          '[data-modal="confirm-termination"] button[name="button-terminate"]'
         );
 
         scenario.withWorkflowTermination();
@@ -362,12 +366,12 @@ describe('Workflow', () => {
       it('should allow the user to cancel the termination prompt, doing nothing', async function test() {
         const [summaryEl] = await summaryTest(this.test);
 
-        (await summaryEl.waitUntilExists('aside.actions a.terminate')).trigger(
+        (await summaryEl.waitUntilExists('aside.actions button')).trigger(
           'click'
         );
 
         const cancelDialog = await summaryEl.waitUntilExists(
-          '[data-modal="confirm-termination"] a.cancel'
+          '[data-modal="confirm-termination"] button[name="button-cancel"]'
         );
 
         cancelDialog.trigger('click');
@@ -387,8 +391,7 @@ describe('Workflow', () => {
             .descendant('.workflow-status dd')
             .and.have.trimmed.text('completed')
         );
-        summaryEl.should.have.descendant('aside.actions a.terminate').and.not.be
-          .displayed;
+        summaryEl.should.have.descendant('aside.actions button.disabled');
       });
     });
   });
@@ -703,7 +706,7 @@ describe('Workflow', () => {
             .textNodes('.table .vue-recycle-scroller__item-view .td.col-time')
             .should.deep.equal([
               moment(fixtures.history.emailRun1[0].timestamp).format(
-                'MMM Do h:mm:ss a'
+                'MMM D, YYYY h:mm:ss A'
               ),
               '',
               '',
@@ -735,7 +738,7 @@ describe('Workflow', () => {
             .should.deep.equal(
               fixtures.history.emailRun1
                 .filter((_value, index) => index < 6)
-                .map(e => moment(e.timestamp).format('MMM Do h:mm:ss a'))
+                .map(e => moment(e.timestamp).format('MMM D, YYYY h:mm:ss A'))
             )
         );
         localStorage
@@ -753,7 +756,7 @@ describe('Workflow', () => {
             .should.deep.equal(
               fixtures.history.emailRun1
                 .filter((_value, index) => index < 6)
-                .map(e => moment(e.timestamp).format('MMM Do h:mm:ss a'))
+                .map(e => moment(e.timestamp).format('MMM D, YYYY h:mm:ss A'))
             )
         );
       });
@@ -1089,7 +1092,9 @@ describe('Workflow', () => {
       await retry(() =>
         stackTraceEl
           .querySelector('header span')
-          .should.contain.text(`Stack trace at ${moment().format('h:mm')}`)
+          .should.contain.text(
+            `Stack trace at ${moment().format('MMM D, YYYY h:mm:ss A')}`
+          )
       );
       stackTraceEl
         .querySelector('pre')

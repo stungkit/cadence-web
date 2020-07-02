@@ -5,6 +5,7 @@ describe('Task List', () => {
     const [testEl, scenario] = new Scenario(mochaTest)
       .withDomain('ci-test')
       .startingAt('/domains/ci-test/task-lists/ci_task_list')
+      .withNewsFeed()
       .withTaskListPollers('ci_task_list', pollers)
       .go();
 
@@ -27,7 +28,7 @@ describe('Task List', () => {
         moment()
           .startOf('hour')
           .add(m, 'minutes')
-          .format('ddd MMMM Do, h:mm:ss a')
+          .format('MMM D, YYYY h:mm:ss A')
       )
     );
     taskListEl

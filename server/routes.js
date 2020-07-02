@@ -36,6 +36,29 @@ async function listWorkflows(state, ctx) {
   })
 }
 
+/**
+ * Override this route to perform authorization check
+ * on current user & domain they are accessing.
+ *
+ * Example:
+ *
+ * router.get('/api/domains/:domain/authorization', () => {
+ *  const { domain } = ctx.params;
+ *
+ *  ctx.body = {
+ *    // use whatever system authorization checks needed here.
+ *    authorization: db.isUserAuthorizedForDomain(domain),
+ *  };
+ * })
+ */
+router.get('/api/domains/:domain/authorization', async function (ctx, next) {
+  ctx.body = {
+    authorization: true,
+  };
+
+  next();
+});
+
 router.get('/api/domains/:domain/workflows/open', listWorkflows.bind(null, 'open'))
 router.get('/api/domains/:domain/workflows/closed', listWorkflows.bind(null, 'closed'))
 
@@ -165,7 +188,19 @@ router.post('/api/domains/:domain/workflows/:workflowId/:runId/signal/:signal', 
 
 router.get('/api/domains/:domain/workflows/:workflowId/:runId', async function (ctx) {
   try {
-    ctx.body = await ctx.cadence.describeWorkflow();
+    const describeResponse = await ctx.cadence.describeWorkflow();
+
+    if (describeResponse.workflowExecutionInfo) {
+      describeResponse.workflowExecutionInfo.closeEvent = null;
+      if (describeResponse.workflowExecutionInfo.closeStatus) {
+        const closeEventResponse = await ctx.cadence.getHistory({
+          HistoryEventFilterType: 'CLOSE_EVENT',
+        });
+        describeResponse.workflowExecutionInfo.closeEvent = mapHistoryResponse(closeEventResponse.history)[0];
+      }
+    }
+
+    ctx.body = describeResponse;
   } catch (error) {
     if (error.name !== 'NotFoundError') {
       throw error;

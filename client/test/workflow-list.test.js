@@ -6,6 +6,7 @@ describe('Workflow list', () => {
     const [testEl, scenario] = new Scenario(mochaTest)
       .withDomain('ci-test')
       .startingAt('/domains/ci-test/workflows')
+      .withNewsFeed()
       .withWorkflows('open', query, initialWorkflows)
       .withDomainDescription('ci-test', domainDesc)
       .go();
@@ -73,7 +74,9 @@ describe('Workflow list', () => {
     resultsEl
       .textNodes('tbody td:nth-child(5)')
       .should.deep.equal(
-        fixtures.workflows.open.map(wf => moment(wf.startTime).format('lll'))
+        fixtures.workflows.open.map(wf =>
+          moment(wf.startTime).format('MMM D, YYYY h:mm:ss A')
+        )
       );
 
     resultsEl.should.not
@@ -120,6 +123,7 @@ describe('Workflow list', () => {
       .startingAt(
         '/domains/ci-test/workflows?status=FAILED&range=last-24-hours'
       )
+      .withNewsFeed()
       .withWorkflows('closed', {
         startTime: moment()
           .subtract(24, 'hours')
@@ -250,6 +254,7 @@ describe('Workflow list', () => {
     const [testEl] = new Scenario(this.test)
       .withDomain('ci-test')
       .startingAt('/domains/ci-test/workflows?status=FAILED&workflowName=demo')
+      .withNewsFeed()
       .withWorkflows('closed', {
         status: 'FAILED',
         workflowName: 'demo',

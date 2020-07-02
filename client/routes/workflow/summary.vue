@@ -1,32 +1,33 @@
 <template>
   <section class="workflow-summary">
     <aside class="actions">
-      <feature-flag name="workflow-terminate">
-        <a
-          href=""
-          class="terminate"
-          v-show="isWorkflowRunning"
-          @click.prevent="$modal.show('confirm-termination')"
-        >
-          Terminate
-        </a>
-      </feature-flag>
+      <button-fill
+        color="secondary"
+        :disabled="isTerminateDisabled"
+        :disabled-label="terminateDisabledLabel"
+        label="TERMINATE"
+        @click.prevent="$modal.show('confirm-termination')"
+        v-if="isTerminateShown"
+      />
     </aside>
 
     <modal name="confirm-termination">
       <h3>Are you sure you want to terminate this workflow?</h3>
       <input v-model="terminationReason" placeholder="Reason" />
       <footer>
-        <a href="#" class="terminate" @click.prevent="terminate">
-          Terminate
-        </a>
-        <a
-          href="#"
-          class="cancel"
+        <button-fill
+          color="secondary"
+          label="TERMINATE"
+          name="button-terminate"
+          @click.prevent="terminate"
+        />
+
+        <button-fill
+          color="primary"
+          label="CANCEL"
+          name="button-cancel"
           @click.prevent="$modal.hide('confirm-termination')"
-        >
-          Cancel
-        </a>
+        />
       </footer>
     </modal>
 
@@ -131,50 +132,106 @@
 </template>
 
 <script>
-import moment from 'moment';
 import { TERMINATE_DEFAULT_ERROR_MESSAGE } from './constants';
 import { NOTIFICATION_TYPE_ERROR, NOTIFICATION_TYPE_SUCCESS } from '~constants';
-import { getErrorMessage } from '~helpers';
-import { BarLoader, DataViewer, DetailList, FeatureFlag } from '~components';
+import {
+  getErrorMessage,
+  getDatetimeFormattedString,
+  isFeatureFlagEnabled,
+} from '~helpers';
+import { BarLoader, ButtonFill, DataViewer, DetailList } from '~components';
 
 export default {
   data() {
     return {
+      isAuthorized: false,
       terminationReason: undefined,
     };
   },
   props: [
     'baseAPIURL',
+    'dateFormat',
+    'domain',
     'input',
     'isWorkflowRunning',
     'parentWorkflowRoute',
     'result',
     'runId',
+    'timeFormat',
+    'timezone',
     'wfStatus',
     'workflow',
     'workflowId',
   ],
   components: {
     'bar-loader': BarLoader,
+    'button-fill': ButtonFill,
     'data-viewer': DataViewer,
     'detail-list': DetailList,
-    'feature-flag': FeatureFlag,
   },
   computed: {
+    isTerminateShown() {
+      return isFeatureFlagEnabled('workflow-terminate') && this.isAuthorized;
+    },
+    isTerminateDisabled() {
+      return !this.isWorkflowRunning;
+    },
+    terminateDisabledLabel() {
+      return !this.isWorkflowRunning
+        ? 'Workflow needs to be running to be able to terminate.'
+        : '';
+    },
     workflowCloseTime() {
-      return this.workflow.workflowExecutionInfo.closeTime
-        ? moment(this.workflow.workflowExecutionInfo.closeTime).format(
-            'dddd MMMM Do, h:mm:ss a'
-          )
+      const { dateFormat, timeFormat, timezone } = this;
+      const { closeTime } = this.workflow.workflowExecutionInfo;
+
+      return closeTime
+        ? getDatetimeFormattedString({
+            date: closeTime,
+            dateFormat,
+            timeFormat,
+            timezone,
+          })
         : '';
     },
     workflowStartTime() {
-      return moment(this.workflow.workflowExecutionInfo.startTime).format(
-        'dddd MMMM Do, h:mm:ss a'
-      );
+      const { dateFormat, timeFormat, timezone } = this;
+      const { startTime } = this.workflow.workflowExecutionInfo;
+
+      return getDatetimeFormattedString({
+        date: startTime,
+        dateFormat,
+        timeFormat,
+        timezone,
+      });
     },
   },
   methods: {
+    async fetchDomainAuthorization() {
+      const { domain } = this;
+
+      try {
+        const response = await this.$http(
+          `/api/domains/${domain}/authorization`
+        );
+
+        return response.authorization;
+      } catch (error) {
+        this.$emit('onNotification', {
+          message: getErrorMessage(error),
+          type: NOTIFICATION_TYPE_ERROR,
+        });
+      }
+    },
+    async initAuthorization() {
+      if (isFeatureFlagEnabled('domain-authorization')) {
+        const authorization = await this.fetchDomainAuthorization();
+
+        this.isAuthorized = authorization;
+      } else {
+        this.isAuthorized = true;
+      }
+    },
     terminate() {
       this.$modal.hide('confirm-termination');
       this.$http
@@ -198,6 +255,9 @@ export default {
           }
         );
     },
+  },
+  mounted() {
+    this.initAuthorization();
   },
 };
 </script>
@@ -255,8 +315,4 @@ section.workflow-summary
   footer
     display flex
     justify-content space-between
-  a.terminate
-    action-button(uber-orange)
-  a.cancel
-    action-button()
 </style>
