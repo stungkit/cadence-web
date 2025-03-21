@@ -1,6 +1,11 @@
-import { MdHighlightOff, MdPowerSettingsNew } from 'react-icons/md';
+import {
+  MdHighlightOff,
+  MdPowerSettingsNew,
+  MdOutlineRestartAlt,
+} from 'react-icons/md';
 
 import { type CancelWorkflowResponse } from '@/route-handlers/cancel-workflow/cancel-workflow.types';
+import { type RestartWorkflowResponse } from '@/route-handlers/restart-workflow/restart-workflow.types';
 import { type TerminateWorkflowResponse } from '@/route-handlers/terminate-workflow/terminate-workflow.types';
 
 import getWorkflowIsCompleted from '../../workflow-page/helpers/get-workflow-is-completed';
@@ -9,6 +14,7 @@ import { type WorkflowAction } from '../workflow-actions.types';
 const workflowActionsConfig: [
   WorkflowAction<CancelWorkflowResponse>,
   WorkflowAction<TerminateWorkflowResponse>,
+  WorkflowAction<RestartWorkflowResponse>,
 ] = [
   {
     id: 'cancel',
@@ -47,6 +53,23 @@ const workflowActionsConfig: [
       ),
     apiRoute: 'terminate',
     getSuccessMessage: () => 'Workflow has been terminated.',
+  },
+  {
+    id: 'restart',
+    label: 'Restart',
+    subtitle: 'Restart a workflow execution',
+    modal: {
+      text: [
+        'Restarts a workflow by creating a new execution with a fresh Run ID while using the existing input. If the previous execution is still running, it will be terminated.',
+        'What differentiates Restart from Reset is that the restarted workflow is not aware of the previous workflow execution.',
+      ],
+    },
+    icon: MdOutlineRestartAlt,
+    getIsRunnable: () => true,
+    apiRoute: 'restart',
+    getSuccessMessage: (result) =>
+      // TODO: change runid to a link (upcomming PR)
+      `Workflow has been restarted with new run ID: ${result.runId}`,
   },
 ] as const;
 
