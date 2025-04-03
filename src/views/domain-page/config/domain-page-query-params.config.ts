@@ -5,6 +5,7 @@ import {
 import dayjs from '@/utils/datetime/dayjs';
 import parseDateQueryParam from '@/utils/datetime/parse-date-query-param';
 import { type SortOrder } from '@/utils/sort-by';
+import DOMAIN_WORKFLOWS_ARCHIVAL_START_DAYS_CONFIG from '@/views/domain-workflows-archival/config/domain-workflows-archival-start-days.config';
 import { type WorkflowStatusClosed } from '@/views/domain-workflows-archival/domain-workflows-archival-header/domain-workflows-archival-header.types';
 import DOMAIN_WORKFLOWS_BASIC_START_DAYS_CONFIG from '@/views/domain-workflows-basic/config/domain-workflows-basic-start-days.config';
 import { type WorkflowStatusBasicVisibility } from '@/views/domain-workflows-basic/domain-workflows-basic-filters/domain-workflows-basic-filters.types';
@@ -13,13 +14,15 @@ import isWorkflowStatus from '@/views/shared/workflow-status-tag/helpers/is-work
 import { type WorkflowStatus } from '@/views/shared/workflow-status-tag/workflow-status-tag.types';
 import { type WorkflowsHeaderInputType } from '@/views/shared/workflows-header/workflows-header.types';
 
+const now = dayjs();
+
 const domainPageQueryParamsConfig: [
   PageQueryParam<'inputType', WorkflowsHeaderInputType>,
   // Search input
   PageQueryParam<'search', string>,
   PageQueryParamMultiValue<'statuses', Array<WorkflowStatus> | undefined>,
   PageQueryParam<'timeRangeStart', Date | undefined>,
-  PageQueryParam<'timeRangeEnd', Date | undefined>,
+  PageQueryParam<'timeRangeEnd', Date>,
   PageQueryParam<'sortColumn', string>,
   PageQueryParam<'sortOrder', SortOrder>,
   // Query input
@@ -37,8 +40,8 @@ const domainPageQueryParamsConfig: [
     'statusesArchival',
     Array<WorkflowStatusClosed> | undefined
   >,
-  PageQueryParam<'timeRangeStartArchival', Date | undefined>,
-  PageQueryParam<'timeRangeEndArchival', Date | undefined>,
+  PageQueryParam<'timeRangeStartArchival', Date>,
+  PageQueryParam<'timeRangeEndArchival', Date>,
   PageQueryParam<'sortColumnArchival', string>,
   PageQueryParam<'sortOrderArchival', SortOrder>,
   PageQueryParam<'queryArchival', string>,
@@ -68,7 +71,8 @@ const domainPageQueryParamsConfig: [
   {
     key: 'timeRangeEnd',
     queryParamKey: 'end',
-    parseValue: parseDateQueryParam,
+    defaultValue: now.toDate(),
+    parseValue: (v) => parseDateQueryParam(v) ?? now.toDate(),
   },
   {
     key: 'sortColumn',
@@ -102,20 +106,18 @@ const domainPageQueryParamsConfig: [
   {
     key: 'timeRangeStartBasic',
     queryParamKey: 'start',
-    defaultValue: dayjs()
+    defaultValue: now
       .subtract(DOMAIN_WORKFLOWS_BASIC_START_DAYS_CONFIG, 'days')
       .toDate(),
     parseValue: (v) =>
       parseDateQueryParam(v) ??
-      dayjs()
-        .subtract(DOMAIN_WORKFLOWS_BASIC_START_DAYS_CONFIG, 'days')
-        .toDate(),
+      now.subtract(DOMAIN_WORKFLOWS_BASIC_START_DAYS_CONFIG, 'days').toDate(),
   },
   {
     key: 'timeRangeEndBasic',
     queryParamKey: 'end',
-    defaultValue: dayjs().toDate(),
-    parseValue: (v) => parseDateQueryParam(v) ?? dayjs().toDate(),
+    defaultValue: now.toDate(),
+    parseValue: (v) => parseDateQueryParam(v) ?? now.toDate(),
   },
   {
     key: 'inputTypeArchival',
@@ -144,12 +146,20 @@ const domainPageQueryParamsConfig: [
   {
     key: 'timeRangeStartArchival',
     queryParamKey: 'astart',
-    parseValue: parseDateQueryParam,
+    defaultValue: now
+      .subtract(DOMAIN_WORKFLOWS_ARCHIVAL_START_DAYS_CONFIG, 'days')
+      .toDate(),
+    parseValue: (v) =>
+      parseDateQueryParam(v) ??
+      now
+        .subtract(DOMAIN_WORKFLOWS_ARCHIVAL_START_DAYS_CONFIG, 'days')
+        .toDate(),
   },
   {
     key: 'timeRangeEndArchival',
     queryParamKey: 'aend',
-    parseValue: parseDateQueryParam,
+    defaultValue: now.toDate(),
+    parseValue: (v) => parseDateQueryParam(v) ?? now.toDate(),
   },
   {
     key: 'sortColumnArchival',
