@@ -13,14 +13,15 @@ This web UI is used to view workflows from [Cadence][cadence], see what's runnin
 
 Set these environment variables if you need to change their defaults
 
-| Variable                     | Description                                   | Default          |
-| ---------------------------- | --------------------------------------------- | ---------------- |
-| CADENCE_GRPC_PEERS           | Comma-delimited list of gRPC peers            | 127.0.0.1:7833   |
-| CADENCE_GRPC_SERVICES_NAMES  | Comma-delimited list of gRPC services to call | cadence-frontend |
-| CADENCE_CLUSTERS_NAMES       | Comma-delimited list of cluster names         | cluster0         |
-| CADENCE_WEB_PORT             | HTTP port to serve on                         | 8088             |
-| CADENCE_WEB_HOSTNAME         | Host name to serve on                         | 0.0.0.0          |
-| CADENCE_ADMIN_SECURITY_TOKEN | Admin token for accessing admin methods       | ''               |
+| Variable                     | Description                                                                   | Default          |
+| ---------------------------- | ----------------------------------------------------------------------------- | ---------------- |
+| CADENCE_GRPC_PEERS           | Comma-delimited list of gRPC peers                                            | 127.0.0.1:7833   |
+| CADENCE_GRPC_SERVICES_NAMES  | Comma-delimited list of gRPC services to call                                 | cadence-frontend |
+| CADENCE_CLUSTERS_NAMES       | Comma-delimited list of cluster names                                         | cluster0         |
+| CADENCE_WEB_PORT             | HTTP port to serve on                                                         | 8088             |
+| CADENCE_WEB_HOSTNAME         | Host name to serve on                                                         | 0.0.0.0          |
+| CADENCE_ADMIN_SECURITY_TOKEN | Admin token for accessing admin methods                                       | ''               |
+| CADENCE_GRPC_TLS_CA_FILE     | Path to root CA certificate file for enabling one-way TLS on gRPC connections | ''               |
 
 Note: To connect `cadence-web` to multiple clusters, you will need to add comma-delimted entries for `CADENCE_GRPC_PEERS`, `CADENCE_GRPC_SERVICES_NAMES` & `CADENCE_CLUSTERS_NAMES` for each cluster (each cluster values are grouped by their index within the Comma-delimited lists).
 
@@ -38,6 +39,33 @@ The latest version of `cadence-web` is included in the `cadence` composed docker
 ```
 docker-compose -f docker/docker-compose.yml up
 ```
+
+### Using TLS for gRPC
+
+You can run cadence-web with secure gRPC TLS communication by passing your CA certificate file to the container and configure the environment variable accordingly.
+
+#### Steps to Pass the Certificate File in Docker
+
+1. **Prepare your CA certificate file:**  
+   Ensure you have the root CA file (e.g., `ca.pem`) accessible on your host machine.
+
+2. **Mount the certificate file into the container:**  
+   Use Docker volume mounting (`-v` or `--volume`) to make the certificate file available inside the container at a known path.
+
+3. **Set the `CADENCE_GRPC_TLS_CA_FILE` environment variable to the mounted certificate path:**  
+
+Example command (for Linux):
+
+```bash
+docker run -it --rm \
+  -p 8088:8088  \
+  -v /path/on/host/ca.pem:/etc/certs/ca.pem:ro \
+  -e CADENCE_GRPC_TLS_CA_FILE=/etc/certs/ca.pem \
+  ubercadence/server:master-auto-setup
+```
+
+- Replace `/path/on/host/ca.pem` with the actual location of your CA certificate on the host system.
+- `CADENCE_GRPC_TLS_CA_FILE` must point to the path inside the container where the certificate is mounted.
 
 ### Building & developing cadence-web 
 
@@ -98,12 +126,13 @@ You can customize the YAML file or reuse configurations from the [cadence reposi
 After running `cadence`, start `cadence-web` for development using one of the previous methods ([Running development environment](#running-development-environment), [VSCode Dev Containers](#using-vscode-dev-containers))
 
 
+
 #### NPM scripts
 
 
 | script            | Description                                                                                     |
 | ----------------- | ----------------------------------------------------------------------------------------------- |
-| build             | Generate a production build                                                                       |
+| build             | Generate a production build                                                                     |
 | start             | Start server for existing production build                                                      |
 | dev               | Run a development server                                                                        |
 | install-idl       | Download idl files required for building/running the project                                    |
