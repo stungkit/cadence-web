@@ -1,10 +1,16 @@
+import logger, { registerLoggers } from '@/utils/logger';
+
 import getTransformedConfigs from './utils/config/get-transformed-configs';
 import { setLoadedGlobalConfigs } from './utils/config/global-configs-ref';
-import logger, { registerLoggers } from './utils/logger';
 
 export async function register() {
   registerLoggers();
+
   if (process.env.NEXT_RUNTIME === 'nodejs') {
+    if (process.env.OTEL_SDK_DISABLED === 'false') {
+      (await import('@/utils/otel/otel-register')).register();
+    }
+
     try {
       const configs = await getTransformedConfigs();
       setLoadedGlobalConfigs(configs);
