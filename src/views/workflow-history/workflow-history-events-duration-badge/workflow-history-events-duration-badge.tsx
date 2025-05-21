@@ -13,6 +13,7 @@ export default function WorkflowHistoryEventsDurationBadge({
   eventsCount,
   hasMissingEvents,
   workflowCloseTime,
+  showOngoingOnly,
 }: Props) {
   const endTime = closeTime || workflowCloseTime;
   const workflowEnded =
@@ -20,6 +21,7 @@ export default function WorkflowHistoryEventsDurationBadge({
     workflowCloseStatus !== 'WORKFLOW_EXECUTION_CLOSE_STATUS_INVALID';
   const singleEvent = eventsCount === 1 && !hasMissingEvents;
   const noDuration = singleEvent || (workflowEnded && !endTime);
+  const hideDuration = (showOngoingOnly && endTime) || noDuration;
 
   const [duration, setDuration] = useState<string>(() =>
     getFormattedEventsDuration(startTime, endTime)
@@ -27,16 +29,16 @@ export default function WorkflowHistoryEventsDurationBadge({
 
   useEffect(() => {
     setDuration(getFormattedEventsDuration(startTime, endTime));
-    if (!endTime && !noDuration) {
+    if (!endTime && !hideDuration) {
       const interval = setInterval(() => {
         setDuration(getFormattedEventsDuration(startTime, endTime));
       }, 1000);
 
       return () => clearInterval(interval);
     }
-  }, [startTime, endTime, noDuration]);
+  }, [startTime, endTime, hideDuration]);
 
-  if (noDuration) {
+  if (hideDuration) {
     return null;
   }
 
