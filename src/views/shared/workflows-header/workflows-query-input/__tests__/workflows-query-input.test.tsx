@@ -1,54 +1,43 @@
 import React from 'react';
 
-import { fireEvent } from '@testing-library/react';
+import { render, screen, userEvent, within } from '@/test-utils/rtl';
 
-import { render, screen, userEvent, waitFor } from '@/test-utils/rtl';
-
+import * as useQueryTextWithAutocompleteModule from '../hooks/use-query-text-with-autocomplete';
 import WorkflowsQueryInput from '../workflows-query-input';
 
-beforeAll(() => {
-  // Prevent errors if input.focus is called on undefined in jsdom
-  HTMLElement.prototype.focus = function () {};
-});
-
-function Wrapper({
-  startValue = '',
-  isQueryRunning = false,
-  onSetValue,
-  onRefetchQuery,
-}: {
-  startValue?: string;
-  isQueryRunning?: boolean;
-  onSetValue?: (v: string | undefined) => void;
-  onRefetchQuery?: () => void;
-}) {
-  const [value, setValue] = React.useState(startValue);
-  return (
-    <WorkflowsQueryInput
-      value={value}
-      setValue={(v) => {
-        setValue(v ?? '');
-        onSetValue?.(v);
-      }}
-      refetchQuery={onRefetchQuery ?? (() => {})}
-      isQueryRunning={isQueryRunning}
-    />
-  );
-}
+jest.mock('../hooks/use-query-text-with-autocomplete', () =>
+  jest.fn(() => ({
+    queryText: '',
+    setQueryText: jest.fn(),
+    nextSuggestions: [],
+    onSuggestionSelect: jest.fn(),
+  }))
+);
 
 describe(WorkflowsQueryInput.name, () => {
   it('renders as expected', async () => {
     setup({});
 
-    expect(await screen.findByRole('textbox')).toBeInTheDocument();
+    expect(await screen.findByRole('combobox')).toBeInTheDocument();
     expect(await screen.findByText('Run Query')).toBeInTheDocument();
   });
 
   it('renders as expected when loaded with a start value', async () => {
-    setup({ startValue: 'test_query' });
+    setup({
+      startValue: 'test_query',
+      hookReturn: {
+        queryText: 'test_query',
+        setQueryText: jest.fn(),
+        nextSuggestions: [],
+        onSuggestionSelect: jest.fn(),
+      },
+    });
 
-    const textbox = await screen.findByRole('textbox');
-    await waitFor(() => expect(textbox).toHaveValue('test_query'));
+    const combobox = await screen.findByRole('combobox');
+
+    expect(
+      await within(combobox).findByDisplayValue('test_query')
+    ).toBeInTheDocument();
     expect(await screen.findByText('Rerun Query')).toBeInTheDocument();
   });
 
@@ -56,77 +45,171 @@ describe(WorkflowsQueryInput.name, () => {
     setup({ isQueryRunning: true });
 
     expect(
-      await screen.findByRole('button', { name: /loading run query/i })
+      await screen.findByLabelText('loading Run Query')
     ).toBeInTheDocument();
   });
 
-  // TODO @adhitya.mamallan: These tests cannot be reliably run in jsdom/RTL due to incompatibility between BaseWeb Input/react-autosuggest and the controlled input pattern.
-  it.skip('calls setValue and changes text when the Run Query button is clicked', async () => {
-    const mockSetValue = jest.fn();
-    render(<Wrapper onSetValue={mockSetValue} />);
-    const textbox = await screen.findByRole('textbox');
-    textbox.focus();
-    await userEvent.type(textbox, 'mock_query');
-    (textbox as HTMLInputElement).value = 'mock_query';
-    fireEvent.change(textbox, { target: { value: 'mock_query' } });
-    await userEvent.click(await screen.findByText('Run Query'));
-    await waitFor(() => {
-      expect(mockSetValue).toHaveBeenCalledWith('mock_query');
+  it('calls setValue with queryText when the Run Query button is clicked', async () => {
+    const { mockSetValue, user } = setup({
+      hookReturn: {
+        queryText: 'mock_query',
+        setQueryText: jest.fn(),
+        nextSuggestions: [],
+        onSuggestionSelect: jest.fn(),
+      },
     });
+
+    await user.click(await screen.findByText('Run Query'));
+
+    expect(mockSetValue).toHaveBeenCalledWith('mock_query');
   });
 
-  // TODO @adhitya.mamallan: These tests cannot be reliably run in jsdom/RTL due to incompatibility between BaseWeb Input/react-autosuggest and the controlled input pattern.
-  it.skip('calls setValue and changes text when Enter is pressed', async () => {
-    const mockSetValue = jest.fn();
-    render(<Wrapper onSetValue={mockSetValue} />);
-    const textbox = await screen.findByRole('textbox');
-    textbox.focus();
-    await userEvent.type(textbox, 'mock_query');
-    (textbox as HTMLInputElement).value = 'mock_query';
-    fireEvent.change(textbox, { target: { value: 'mock_query' } });
-    await userEvent.keyboard('{Enter}');
-    await waitFor(() => {
-      expect(mockSetValue).toHaveBeenCalledWith('mock_query');
+  it('calls setValue when Enter is pressed in the combobox', async () => {
+    const { mockSetValue, user } = setup({
+      hookReturn: {
+        queryText: 'mock_query',
+        setQueryText: jest.fn(),
+        nextSuggestions: [],
+        onSuggestionSelect: jest.fn(),
+      },
     });
+
+    const combobox = await screen.findByRole('combobox');
+    await user.click(combobox);
+    await user.keyboard('{Enter}');
+
+    expect(mockSetValue).toHaveBeenCalledWith('mock_query');
   });
 
-  it('calls refetchQuery when the Rerun Query button is clicked', async () => {
-    const { mockRefetch, user } = setup({ startValue: 'test_query' });
+  it('calls refetchQuery when the Rerun Query button is clicked and query is unchanged', async () => {
+    const { mockRefetch, user } = setup({
+      startValue: 'test_query',
+      hookReturn: {
+        queryText: 'test_query',
+        setQueryText: jest.fn(),
+        nextSuggestions: [],
+        onSuggestionSelect: jest.fn(),
+      },
+    });
 
     await user.click(await screen.findByText('Rerun Query'));
 
     expect(mockRefetch).toHaveBeenCalled();
   });
 
-  it('calls input onChange and updates queryText', async () => {
-    setup({});
-    const textbox = await screen.findByRole('textbox');
-    fireEvent.change(textbox, { target: { value: 'new_query' } });
-    expect(textbox).toHaveValue('new_query');
+  it('calls setQueryText when combobox value changes', async () => {
+    const mockSetQueryText = jest.fn();
+    const { user } = setup({
+      hookReturn: {
+        queryText: '',
+        setQueryText: mockSetQueryText,
+        nextSuggestions: [],
+        onSuggestionSelect: jest.fn(),
+      },
+    });
+
+    const combobox = await screen.findByRole('combobox');
+    await user.type(combobox, 'new query');
+
+    // Note: The exact number of calls depends on the typing implementation
+    expect(mockSetQueryText).toHaveBeenCalled();
   });
 
-  it('shows "Rerun Query" when query is unchanged and "Run Query" otherwise', async () => {
-    setup({ startValue: 'foo' });
-    const textbox = await screen.findByRole('textbox');
-    // Should show Rerun Query when value matches queryText
-    expect(await screen.findByText('Rerun Query')).toBeInTheDocument();
-    // Change the value
-    fireEvent.change(textbox, { target: { value: 'bar' } });
+  it('renders suggestions when available', async () => {
+    const { user } = setup({
+      hookReturn: {
+        queryText: 'WorkflowType',
+        setQueryText: jest.fn(),
+        nextSuggestions: ['WorkflowType = "example"', 'WorkflowType != "test"'],
+        onSuggestionSelect: jest.fn(),
+      },
+    });
+
+    const combobox = await screen.findByRole('combobox');
+    await user.click(combobox);
+
+    // Suggestions should be available in the dropdown
+    expect(
+      await screen.findByText('WorkflowType = "example"')
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText('WorkflowType != "test"')
+    ).toBeInTheDocument();
+  });
+
+  it('calls onSuggestionSelect when a suggestion is clicked', async () => {
+    const mockOnSuggestionSelect = jest.fn();
+    const { user } = setup({
+      hookReturn: {
+        queryText: 'WorkflowType',
+        setQueryText: jest.fn(),
+        nextSuggestions: ['WorkflowType = "example"', 'WorkflowType != "test"'],
+        onSuggestionSelect: mockOnSuggestionSelect,
+      },
+    });
+
+    const combobox = await screen.findByRole('combobox');
+    await user.click(combobox);
+
+    const suggestion = await screen.findByText('WorkflowType = "example"');
+    await user.click(suggestion);
+
+    expect(mockOnSuggestionSelect).toHaveBeenCalledWith(
+      'WorkflowType = "example"'
+    );
+  });
+
+  it('shows "Run Query" when query text differs from current value', async () => {
+    setup({
+      startValue: 'original_query',
+      hookReturn: {
+        queryText: 'modified_query',
+        setQueryText: jest.fn(),
+        nextSuggestions: [],
+        onSuggestionSelect: jest.fn(),
+      },
+    });
+
     expect(await screen.findByText('Run Query')).toBeInTheDocument();
+    expect(screen.queryByText('Rerun Query')).not.toBeInTheDocument();
+  });
+
+  it('shows "Rerun Query" when query text matches current value', async () => {
+    setup({
+      startValue: 'same_query',
+      hookReturn: {
+        queryText: 'same_query',
+        setQueryText: jest.fn(),
+        nextSuggestions: [],
+        onSuggestionSelect: jest.fn(),
+      },
+    });
+
+    expect(await screen.findByText('Rerun Query')).toBeInTheDocument();
+    expect(screen.queryByText('Run Query')).not.toBeInTheDocument();
   });
 });
 
 function setup({
   startValue,
   isQueryRunning,
+  hookReturn,
 }: {
   startValue?: string;
   isQueryRunning?: boolean;
+  hookReturn?: ReturnType<typeof useQueryTextWithAutocompleteModule.default>;
 }) {
   const mockSetValue = jest.fn();
   const mockRefetch = jest.fn();
   const user = userEvent.setup();
-  render(
+
+  if (hookReturn) {
+    jest
+      .spyOn(useQueryTextWithAutocompleteModule, 'default')
+      .mockReturnValue(hookReturn);
+  }
+
+  const renderResult = render(
     <WorkflowsQueryInput
       value={startValue ?? ''}
       setValue={mockSetValue}
@@ -135,5 +218,5 @@ function setup({
     />
   );
 
-  return { mockSetValue, mockRefetch, user };
+  return { mockSetValue, mockRefetch, user, ...renderResult };
 }

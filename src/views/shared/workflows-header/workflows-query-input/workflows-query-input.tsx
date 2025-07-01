@@ -1,15 +1,12 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback } from 'react';
 
 import { Button } from 'baseui/button';
-import { Input } from 'baseui/input';
-import type { RenderInputComponentProps } from 'react-autosuggest';
-import Autosuggest from 'react-autosuggest';
+import { Combobox } from 'baseui/combobox';
 import { MdPlayArrow, MdCode, MdRefresh } from 'react-icons/md';
 
-import { getAutocompleteSuggestions } from './helpers/get-autocomplete-suggestions';
-import { updateQueryTextWithSuggestion } from './helpers/update-autocomplete-suggestions';
+import useQueryTextWithAutocomplete from './hooks/use-query-text-with-autocomplete';
 import { styled, overrides } from './workflows-query-input.styles';
-import type { Props, Suggestion } from './workflows-query-input.types';
+import { type Props } from './workflows-query-input.types';
 
 export default function WorkflowsQueryInput({
   value,
@@ -17,12 +14,8 @@ export default function WorkflowsQueryInput({
   refetchQuery,
   isQueryRunning,
 }: Props) {
-  const [queryText, setQueryText] = useState<string>('');
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-
-  useEffect(() => {
-    setQueryText(value);
-  }, [value]);
+  const { queryText, setQueryText, nextSuggestions, onSuggestionSelect } =
+    useQueryTextWithAutocomplete({ initialValue: value });
 
   const isQueryUnchanged = value && value === queryText;
 
@@ -34,14 +27,6 @@ export default function WorkflowsQueryInput({
     }
   }, [isQueryUnchanged, setValue, queryText, refetchQuery]);
 
-  const onSuggestionsFetchRequested = ({ value }: { value: string }) => {
-    setSuggestions(getAutocompleteSuggestions(value));
-  };
-
-  const onSuggestionsClearRequested = () => {
-    setSuggestions([]);
-  };
-
   return (
     <styled.QueryForm
       onSubmit={(e: React.FormEvent) => {
@@ -49,89 +34,38 @@ export default function WorkflowsQueryInput({
         onSubmit();
       }}
     >
-      <styled.AutosuggestContainer>
-        <Autosuggest
-          suggestions={suggestions}
-          onSuggestionsFetchRequested={onSuggestionsFetchRequested}
-          onSuggestionsClearRequested={onSuggestionsClearRequested}
-          onSuggestionSelected={(_, data) =>
-            updateQueryTextWithSuggestion(data, queryText, setQueryText)
+      <Combobox
+        value={queryText}
+        options={nextSuggestions}
+        mapOptionToString={(option) => option}
+        onChange={(value, suggestion) => {
+          if (suggestion) {
+            onSuggestionSelect(suggestion);
+          } else {
+            setQueryText(value);
           }
-          getSuggestionValue={(suggestion) => suggestion.name}
-          renderSuggestion={(suggestion, { isHighlighted }) => {
-            const SuggestionComponent = isHighlighted
-              ? styled.SuggestionHighlighted
-              : styled.Suggestion;
-            return (
-              <SuggestionComponent>
-                <Button
-                  kind="tertiary"
-                  size="compact"
-                  overrides={{
-                    ...overrides.suggestionButton,
-                    Root: {
-                      ...overrides.suggestionButton.Root,
-                      props: {
-                        $isHighlighted: isHighlighted,
-                      },
-                    },
-                  }}
-                  tabIndex={-1}
-                >
-                  {suggestion.name}
-                </Button>
-              </SuggestionComponent>
-            );
-          }}
-          renderInputComponent={(inputProps) => {
-            const {
-              onChange,
-              ref,
-              max,
-              min,
-              step,
-              ['aria-haspopup']: ariaHaspopup,
-              size,
-              ...restInputProps
-            } = inputProps;
-            return (
-              <Input
-                {...restInputProps}
-                onChange={(e) => {
-                  if (onChange) {
-                    (
-                      onChange as (
-                        event: React.FormEvent<HTMLElement>,
-                        params: { newValue: string }
-                      ) => void
-                    )(e as unknown as React.FormEvent<HTMLElement>, {
-                      newValue: (e.target as HTMLInputElement).value,
-                    });
-                  }
-                }}
-                startEnhancer={() => <MdCode />}
-                overrides={overrides.input}
-                clearable
-                clearOnEscape
-              />
-            );
-          }}
-          inputProps={{
-            placeholder: 'Filter workflows using a custom query',
-            value: queryText,
-            onChange: (
-              event: React.FormEvent<HTMLElement>,
-              { newValue }: { newValue: string }
-            ) => {
-              setQueryText(newValue);
+        }}
+        overrides={{
+          ...overrides.combobox,
+          Input: {
+            props: {
+              overrides: overrides.input,
+              startEnhancer: () => <MdCode />,
+              placeholder: 'Filter workflows using a custom query',
+              clearOnEscape: true,
             },
-          }}
-        />
-      </styled.AutosuggestContainer>
+          },
+        }}
+        clearable
+        // "autocomplete" = true temporarily overwrites the Input content while
+        // a selection is being made, which can seem confusing to the end user
+        autocomplete={false}
+      />
       <Button
         type="submit"
-        isLoading={isQueryRunning}
         overrides={overrides.runButton}
+        startEnhancer={isQueryUnchanged ? <MdRefresh /> : <MdPlayArrow />}
+        isLoading={isQueryRunning}
       >
         {isQueryUnchanged ? 'Rerun Query' : 'Run Query'}
       </Button>

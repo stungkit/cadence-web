@@ -1,8 +1,5 @@
 import {
   ATTRIBUTES,
-  OPERATORS,
-  STATUSES,
-  VALUES,
   LOGICAL_OPERATORS,
   TIME_ATTRIBUTES,
   ID_ATTRIBUTES,
@@ -10,97 +7,80 @@ import {
   TIME_FORMAT,
   TIME_FORMAT_BETWEEN,
   EQUALITY_OPERATORS,
-  OPERATORS_TO_PRESERVE,
+  STATUSES,
+  CLOSE_STATUS_ATTRIBUTE,
+  BOOLEAN_ATTRIBUTES,
+  BOOLEAN_VALUES,
 } from '../workflows-query-input.constants';
-import type {
-  Suggestion,
-  OtherAttributeKey,
-} from '../workflows-query-input.types';
 
-export function getAutocompleteSuggestions(value: string): Suggestion[] {
+export default function getAutocompleteSuggestions(
+  value: string
+): Array<string> {
   const tokens = value.trim().split(/\s+/);
   const lastToken = tokens[tokens.length - 1] || '';
-  const prevToken = tokens[tokens.length - 2] || '';
+  const secondLastToken = tokens[tokens.length - 2] || '';
 
-  // attribute suggestions at start or after logical operators
+  // At query start or after logical operators: show attribute suggestions
   if (
     tokens.length === 1 ||
-    LOGICAL_OPERATORS.includes(prevToken.toUpperCase())
+    LOGICAL_OPERATORS.includes(secondLastToken.toUpperCase())
   ) {
     return ATTRIBUTES.filter((name: string) =>
       name.toLowerCase().startsWith(lastToken.toLowerCase())
-    ).map((name: string) => ({ name, type: 'ATTRIBUTE' }));
+    );
   }
 
-  const attributeValueMap = {
-    CloseStatus: STATUSES,
-    Passed: VALUES,
-    IsCron: VALUES,
-  } as const;
-  type AttributeValueKey = keyof typeof attributeValueMap;
+  // After time attributes and comparison operators: show time format templates
+  const isTimeAttribute = TIME_ATTRIBUTES.includes(secondLastToken);
 
-  const isTimeAttribute = TIME_ATTRIBUTES.includes(prevToken);
-
-  // time attribute with comparison operator
   if (
     isTimeAttribute &&
     COMPARISON_OPERATORS.some((op: string) => lastToken.startsWith(op))
   ) {
-    return [
-      {
-        name: TIME_FORMAT,
-        type: 'TIME',
-      },
-    ];
+    return [TIME_FORMAT];
   } else if (
     isTimeAttribute &&
     ['BETWEEN'].some((op) => lastToken.startsWith(op))
   ) {
-    return [
-      {
-        name: TIME_FORMAT_BETWEEN,
-        type: 'TIME',
-      },
-    ];
+    return [TIME_FORMAT_BETWEEN];
   }
 
-  const isIdAttribute = ID_ATTRIBUTES.includes(prevToken);
+  // After ID attributes and equality operators: show empty quotes placeholder
+  const isIdAttribute = ID_ATTRIBUTES.includes(secondLastToken);
   if (
     isIdAttribute &&
     EQUALITY_OPERATORS.some((op: string) => lastToken.startsWith(op))
   ) {
-    return [
-      {
-        name: '""',
-        type: 'ID',
-      },
-    ];
+    return ['""'];
   }
 
-  // after 'CloseStatus' | 'Passed' | 'IsCron' attributes with or without space
-  const foundAttr = Object.keys(attributeValueMap).find(
+  // After CloseStatus attribute with equality operators: show status values
+  if (
+    (secondLastToken === CLOSE_STATUS_ATTRIBUTE &&
+      (lastToken === '=' || lastToken === '!=')) ||
+    new RegExp(`^CloseStatus(!=|=)$`).test(lastToken)
+  ) {
+    return STATUSES;
+  }
+
+  // After Passed/IsCron attributes with equality operators: show boolean values
+  const foundBooleanAttr = BOOLEAN_ATTRIBUTES.find(
     (attr) =>
-      (prevToken === attr && (lastToken === '=' || lastToken === '!=')) ||
+      (secondLastToken === attr && (lastToken === '=' || lastToken === '!=')) ||
       new RegExp(`^${attr}(!=|=)$`).test(lastToken)
   );
-  if (foundAttr && foundAttr in attributeValueMap) {
-    const attributeMatchStatusBoolean = foundAttr as AttributeValueKey;
-    return attributeValueMap[attributeMatchStatusBoolean].map(
-      (val: string) => ({
-        name: val,
-        type:
-          attributeMatchStatusBoolean === 'CloseStatus' ? 'STATUS' : 'VALUE',
-      })
-    );
+
+  if (foundBooleanAttr) {
+    return BOOLEAN_VALUES;
   }
 
-  // Suggest logical operators after a complete value
+  // After complete values: show logical operators
   const lastTokenIsCompleteValue =
     (lastToken.startsWith('"') && lastToken.endsWith('"')) ||
-    VALUES.includes(lastToken.toUpperCase());
+    BOOLEAN_VALUES.includes(lastToken.toUpperCase());
 
   if (lastTokenIsCompleteValue) {
-    return OPERATORS.map((name: string) => ({ name, type: 'OPERATOR' }));
+    return LOGICAL_OPERATORS;
   }
 
   // Default: no suggestions
