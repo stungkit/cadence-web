@@ -4,8 +4,8 @@ import * as navigationModule from 'next/navigation';
 
 import { render, screen } from '@/test-utils/rtl';
 
+import { mockWorkflowPageTabsConfig } from '../../__fixtures__/workflow-page-tabs-config';
 import WorkflowPageTabsError from '../workflow-page-tabs-error';
-import type { WorkflowPageTabsErrorConfig } from '../workflow-page-tabs-error.types';
 
 jest.mock('@/components/error-panel/error-panel', () =>
   jest.fn(({ message }: { message: string }) => <div>{message}</div>)
@@ -21,22 +21,8 @@ jest.mock('next/navigation', () => ({
 }));
 
 jest.mock(
-  '../../config/workflow-page-tabs-error.config',
-  () =>
-    ({
-      summary: () => ({
-        message: 'summary error',
-      }),
-      history: () => ({
-        message: 'history error',
-      }),
-      queries: () => ({
-        message: 'queries error',
-      }),
-      'stack-trace': () => ({
-        message: 'stack trace error',
-      }),
-    }) as const satisfies WorkflowPageTabsErrorConfig
+  '../../config/workflow-page-tabs.config',
+  () => mockWorkflowPageTabsConfig
 );
 
 describe('WorkflowPageTabsError', () => {

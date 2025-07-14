@@ -2,6 +2,7 @@ import React from 'react';
 
 import { render, screen } from '@/test-utils/rtl';
 
+import { mockWorkflowPageTabsConfig } from '../../__fixtures__/workflow-page-tabs-config';
 import workflowPageTabsConfig from '../../config/workflow-page-tabs.config';
 import WorkflowPageTabs from '../workflow-page-tabs';
 
@@ -26,17 +27,10 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
-jest.mock('../../config/workflow-page-tabs.config', () => [
-  {
-    key: 'summary',
-    title: 'Summary',
-    artwork: () => <div data-testid="summary-artwork" />,
-  },
-  {
-    key: 'page-2',
-    title: 'Page 2',
-  },
-]);
+jest.mock(
+  '../../config/workflow-page-tabs.config',
+  () => mockWorkflowPageTabsConfig
+);
 
 jest.mock(
   '../../workflow-page-cli-commands-button/workflow-page-cli-commands-button',
@@ -54,22 +48,20 @@ describe('WorkflowPageTabs', () => {
 
   it('renders tabs titles correctly', () => {
     setup();
-
-    workflowPageTabsConfig.forEach(({ title }) => {
+    Object.values(workflowPageTabsConfig).forEach(({ title }) => {
       expect(screen.getByText(title)).toBeInTheDocument();
     });
   });
 
   it('renders tabs buttons correctly', () => {
     setup();
-
     expect(screen.getByText('CLI Commands')).toBeInTheDocument();
     expect(screen.getByText('Actions')).toBeInTheDocument();
   });
 
   it('renders tabs artworks correctly', () => {
     setup();
-    workflowPageTabsConfig.forEach(({ key, artwork }) => {
+    Object.entries(workflowPageTabsConfig).forEach(([key, { artwork }]) => {
       if (typeof artwork !== 'undefined')
         expect(screen.getByTestId(`${key}-artwork`)).toBeInTheDocument();
       else
