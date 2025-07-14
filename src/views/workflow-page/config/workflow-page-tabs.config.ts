@@ -4,7 +4,9 @@ import {
   MdOutlineManageSearch,
   MdOutlineTerminal,
 } from 'react-icons/md';
+import { RiStethoscopeLine } from 'react-icons/ri';
 
+import WorkflowDiagnostics from '@/views/workflow-diagnostics/workflow-diagnostics';
 import WorkflowHistory from '@/views/workflow-history/workflow-history';
 import WorkflowQueries from '@/views/workflow-queries/workflow-queries';
 import WorkflowStackTrace from '@/views/workflow-stack-trace/workflow-stack-trace';
@@ -15,7 +17,7 @@ import WorkflowPagePendingEventsBadge from '../workflow-page-pending-events-badg
 import type { WorkflowPageTabsConfig } from '../workflow-page-tabs/workflow-page-tabs.types';
 
 const workflowPageTabsConfig: WorkflowPageTabsConfig<
-  'summary' | 'history' | 'queries' | 'stack-trace'
+  'summary' | 'history' | 'queries' | 'stack-trace' | 'diagnostics'
 > = {
   summary: {
     title: 'Summary',
@@ -38,6 +40,17 @@ const workflowPageTabsConfig: WorkflowPageTabsConfig<
         err,
         'Failed to load workflow history',
         'history'
+      ),
+  },
+  diagnostics: {
+    title: 'Diagnostics',
+    artwork: RiStethoscopeLine,
+    content: WorkflowDiagnostics,
+    getErrorConfig: (err) =>
+      getWorkflowPageErrorConfig(
+        err,
+        'Failed to load workflow diagnostics',
+        'diagnostics'
       ),
   },
   queries: {

@@ -4,7 +4,7 @@ import type { WorkflowPageTabContentProps } from '../workflow-page-tab-content/w
 import { type WorkflowPageTabsConfig } from '../workflow-page-tabs/workflow-page-tabs.types';
 
 export const mockWorkflowPageTabsConfig: WorkflowPageTabsConfig<
-  'summary' | 'history' | 'queries' | 'stack-trace'
+  'summary' | 'history' | 'queries' | 'stack-trace' | 'diagnostics'
 > = {
   summary: {
     title: 'Summary',
@@ -21,6 +21,14 @@ export const mockWorkflowPageTabsConfig: WorkflowPageTabsConfig<
     content: ({ params }: WorkflowPageTabContentProps) =>
       createElement('div', {}, JSON.stringify(params)),
     getErrorConfig: () => ({ message: 'history error' }),
+  },
+  diagnostics: {
+    title: 'Diagnostics',
+    artwork: () =>
+      createElement('div', { 'data-testid': 'diagnostics-artwork' }),
+    content: ({ params }: WorkflowPageTabContentProps) =>
+      createElement('div', {}, JSON.stringify(params)),
+    getErrorConfig: () => ({ message: 'diagnostics error' }),
   },
   queries: {
     title: 'Queries',
