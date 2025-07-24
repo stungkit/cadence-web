@@ -46,17 +46,16 @@ export default function useExpansionToggle<T extends string>({
             },
             {} as Record<T, boolean>
           );
+        } else if (prev[item] === true) {
+          newState = Object.assign({}, prev);
+          delete newState[item];
         } else {
-          if (prev[item] === true) {
-            newState = prev;
-            delete newState[item];
-          } else {
-            newState = {
-              ...prev,
-              [item]: true,
-            };
-          }
+          newState = {
+            ...prev,
+            [item]: true,
+          };
         }
+
         if (items.every((item) => newState[item])) {
           return true;
         }
