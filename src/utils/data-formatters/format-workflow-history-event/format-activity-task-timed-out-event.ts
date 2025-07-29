@@ -16,8 +16,11 @@ const formatActivityTaskTimedOutEvent = ({
   },
   ...eventFields
 }: ActivityTaskTimedOutEvent) => {
+  const { primaryCommonFields, secondaryCommonFields } =
+    formatWorkflowCommonEventFields(eventFields);
+
   return {
-    ...formatWorkflowCommonEventFields(eventFields),
+    ...primaryCommonFields,
     ...eventAttributes,
     timeoutType: formatEnum(timeoutType, 'TIMEOUT_TYPE', 'pascal'),
     details: formatPayload(details),
@@ -25,6 +28,7 @@ const formatActivityTaskTimedOutEvent = ({
     lastFailureReason: lastFailure?.reason || null,
     scheduledEventId: parseInt(scheduledEventId),
     startedEventId: parseInt(startedEventId),
+    ...secondaryCommonFields,
   };
 };
 

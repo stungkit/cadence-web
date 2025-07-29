@@ -11,11 +11,15 @@ const formatChildWorkflowExecutionStartedEvent = ({
   },
   ...eventFields
 }: ChildWorkflowExecutionStartedEvent) => {
+  const { primaryCommonFields, secondaryCommonFields } =
+    formatWorkflowCommonEventFields(eventFields);
+
   return {
-    ...formatWorkflowCommonEventFields(eventFields),
+    ...primaryCommonFields,
     ...eventAttributes,
     initiatedEventId: parseInt(initiatedEventId),
     header: formatPayloadMap(header, 'fields'),
+    ...secondaryCommonFields,
   };
 };
 

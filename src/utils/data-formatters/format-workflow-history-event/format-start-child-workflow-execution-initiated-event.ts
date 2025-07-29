@@ -29,8 +29,11 @@ const formatStartChildWorkflowExecutionInitiatedEvent = ({
   },
   ...eventFields
 }: StartChildWorkflowExecutionInitiatedEvent) => {
+  const { primaryCommonFields, secondaryCommonFields } =
+    formatWorkflowCommonEventFields(eventFields);
+
   return {
-    ...formatWorkflowCommonEventFields(eventFields),
+    ...primaryCommonFields,
     ...eventAttributes,
     taskList: {
       kind: formatEnum(taskList?.kind, 'TASK_LIST_KIND'),
@@ -59,6 +62,7 @@ const formatStartChildWorkflowExecutionInitiatedEvent = ({
     header: formatPayloadMap(header, 'fields'),
     memo: formatPayloadMap(memo, 'fields'),
     searchAttributes: formatPayloadMap(searchAttributes, 'indexedFields'),
+    ...secondaryCommonFields,
   };
 };
 
