@@ -28,14 +28,14 @@ describe(CronScheduleInputPopover.name, () => {
     setup({ fieldType: 'daysOfMonth' });
 
     expect(screen.getByText('Day of Month')).toBeInTheDocument();
-    expect(screen.getByText('0-31')).toBeInTheDocument();
+    expect(screen.getByText('1-31')).toBeInTheDocument();
   });
 
   it('should render with months field type and show month aliases', () => {
     setup({ fieldType: 'months' });
 
     expect(screen.getByText('Month')).toBeInTheDocument();
-    expect(screen.getByText('0-12')).toBeInTheDocument();
+    expect(screen.getByText('1-12')).toBeInTheDocument();
     expect(screen.getByText('JAN-DEC')).toBeInTheDocument();
     expect(screen.getByText('alternative single values')).toBeInTheDocument();
   });
@@ -82,8 +82,8 @@ describe(CronScheduleInputPopover.name, () => {
     const testCases = [
       { fieldType: 'minutes' as const, expectedRange: '0-59' },
       { fieldType: 'hours' as const, expectedRange: '0-23' },
-      { fieldType: 'daysOfMonth' as const, expectedRange: '0-31' },
-      { fieldType: 'months' as const, expectedRange: '0-12' },
+      { fieldType: 'daysOfMonth' as const, expectedRange: '1-31' },
+      { fieldType: 'months' as const, expectedRange: '1-12' },
       { fieldType: 'daysOfWeek' as const, expectedRange: '0-6' },
     ];
 
