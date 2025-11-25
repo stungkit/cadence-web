@@ -7,3 +7,10 @@ export type WorkflowHistoryEventFilteringTypeColors = {
   background: string;
   backgroundHighlighted: string;
 };
+
+export type VisibleHistoryRanges = {
+  groupedStartIndex: number;
+  groupedEndIndex: number;
+  ungroupedStartIndex: number;
+  ungroupedEndIndex: number;
+};
