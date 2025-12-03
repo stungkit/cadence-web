@@ -1,4 +1,4 @@
-import { MdOutlineMonitorHeart, MdOutlineTimer } from 'react-icons/md';
+import { MdHourglassBottom, MdOutlineMonitorHeart } from 'react-icons/md';
 
 import { type WorkflowHistoryEventSummaryFieldParser } from '../workflow-history-event-summary/workflow-history-event-summary.types';
 import WorkflowHistoryEventSummaryJson from '../workflow-history-event-summary-json/workflow-history-event-summary-json';
@@ -25,7 +25,13 @@ const workflowHistoryEventSummaryFieldParsersConfig: Array<WorkflowHistoryEventS
       name: 'Timeouts with timer icon',
       matcher: (name) =>
         new RegExp('(TimeoutSeconds|BackoffSeconds|InSeconds)$').test(name),
-      icon: MdOutlineTimer,
+      icon: MdHourglassBottom,
+    },
+    {
+      name: 'Hide retryAttempt from summary in History V1',
+      matcher: (name) => name === 'attempt',
+      shouldHide: () => true,
+      icon: null,
     },
   ];
 
