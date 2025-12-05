@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { Panel } from 'baseui/accordion';
 import { MdCircle } from 'react-icons/md';
@@ -9,9 +9,12 @@ import WorkflowHistoryGroupLabel from '@/views/workflow-history/workflow-history
 import WorkflowHistoryTimelineResetButton from '@/views/workflow-history/workflow-history-timeline-reset-button/workflow-history-timeline-reset-button';
 
 import workflowHistoryEventFilteringTypeColorsConfig from '../config/workflow-history-event-filtering-type-colors.config';
+import generateHistoryGroupDetails from '../helpers/generate-history-group-details';
 import WorkflowHistoryEventGroupDuration from '../workflow-history-event-group-duration/workflow-history-event-group-duration';
+import WorkflowHistoryGroupDetails from '../workflow-history-group-details/workflow-history-group-details';
 
 import getEventGroupFilteringType from './helpers/get-event-group-filtering-type';
+import getSummaryTabContentEntry from './helpers/get-summary-tab-content-entry';
 import {
   overrides as getOverrides,
   styled,
@@ -34,13 +37,13 @@ export default function WorkflowHistoryEventGroup({
     status,
     label,
     shortLabel,
+    timeMs,
     startTimeMs,
     closeTimeMs,
     // expectedEndTimeInfo,
     events,
     eventsMetadata,
     hasMissingEvents,
-    // badges,
     resetToDecisionEventId,
   } = eventGroup;
 
@@ -53,6 +56,38 @@ export default function WorkflowHistoryEventGroup({
       onReset();
     }
   }, [onReset]);
+
+  const { groupDetailsEntries, summaryDetailsEntries } = useMemo(
+    () => generateHistoryGroupDetails(eventGroup),
+    [eventGroup]
+  );
+
+  const handleGroupExpansionStateChange = useCallback(
+    (newExpanded: boolean) => {
+      events.forEach(({ eventId }) => {
+        if (eventId && getIsEventExpanded(eventId) !== newExpanded)
+          toggleIsEventExpanded(eventId);
+      });
+    },
+    [events, getIsEventExpanded, toggleIsEventExpanded]
+  );
+
+  const groupDetailsEntriesWithSummary = useMemo(
+    () => [
+      ...(summaryDetailsEntries.length > 0
+        ? [
+            getSummaryTabContentEntry({
+              groupId: eventGroup.firstEventId ?? 'unknown',
+              summaryDetails: summaryDetailsEntries.flatMap(
+                ([_eventId, { eventDetails }]) => eventDetails
+              ),
+            }),
+          ]
+        : []),
+      ...groupDetailsEntries,
+    ],
+    [eventGroup.firstEventId, groupDetailsEntries, summaryDetailsEntries]
+  );
 
   return (
     <Panel
@@ -75,22 +110,19 @@ export default function WorkflowHistoryEventGroup({
             />
             {eventsMetadata.at(-1)?.label}
           </styled.StatusContainer>
-          <div>{eventGroup.timeMs ? formatDate(eventGroup.timeMs) : null}</div>
-          <WorkflowHistoryEventGroupDuration
-            startTime={startTimeMs}
-            closeTime={closeTimeMs}
-            workflowIsArchived={workflowIsArchived}
-            eventsCount={events.length}
-            workflowCloseStatus={workflowCloseStatus}
-            loadingMoreEvents={showLoadingMoreEvents}
-            hasMissingEvents={hasMissingEvents}
-            workflowCloseTime={workflowCloseTimeMs}
-          />
-          {/* TODO: add as event details:
-              - Existing event details
-              - Badges
-              - Expected end time info
-          */}
+          <div>{timeMs ? formatDate(timeMs) : null}</div>
+          <div>
+            <WorkflowHistoryEventGroupDuration
+              startTime={startTimeMs}
+              closeTime={closeTimeMs}
+              workflowIsArchived={workflowIsArchived}
+              eventsCount={events.length}
+              workflowCloseStatus={workflowCloseStatus}
+              loadingMoreEvents={showLoadingMoreEvents}
+              hasMissingEvents={hasMissingEvents}
+              workflowCloseTime={workflowCloseTimeMs}
+            />
+          </div>
           <styled.SummarizedDetailsContainer>
             Placeholder for event details
           </styled.SummarizedDetailsContainer>
@@ -110,13 +142,21 @@ export default function WorkflowHistoryEventGroup({
       expanded={events.some(
         ({ eventId }) => eventId && getIsEventExpanded(eventId)
       )}
-      onChange={() => {
-        if (events.length > 0 && events[0].eventId)
-          toggleIsEventExpanded(events[0].eventId);
-      }}
+      onChange={({ expanded }) => handleGroupExpansionStateChange(expanded)}
       overrides={overrides.panel}
     >
-      <div>TODO: Full event details</div>
+      <styled.GroupDetailsGridContainer>
+        <styled.GroupDetailsNameSpacer />
+        <styled.GroupDetailsContainer>
+          <WorkflowHistoryGroupDetails
+            groupDetailsEntries={groupDetailsEntriesWithSummary}
+            // TODO @adhitya.mamallan - pass initial selected event ID here
+            initialEventId={undefined}
+            workflowPageParams={decodedPageUrlParams}
+            onClose={() => handleGroupExpansionStateChange(false)}
+          />
+        </styled.GroupDetailsContainer>
+      </styled.GroupDetailsGridContainer>
     </Panel>
   );
 }
