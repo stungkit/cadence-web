@@ -33,6 +33,7 @@ import { type WorkflowPageTabContentParams } from '../workflow-page/workflow-pag
 
 import WORKFLOW_HISTORY_FETCH_EVENTS_THROTTLE_MS_CONFIG from './config/workflow-history-fetch-events-throttle-ms.config';
 import workflowHistoryFiltersConfig from './config/workflow-history-filters.config';
+import WORKFLOW_HISTORY_RENDER_FETCHED_EVENTS_THROTTLE_MS_CONFIG from './config/workflow-history-render-fetched-events-throttle-ms.config';
 import WORKFLOW_HISTORY_SET_RANGE_THROTTLE_MS_CONFIG from './config/workflow-history-set-range-throttle-ms.config';
 import WorkflowHistoryGroupedTable from './workflow-history-grouped-table/workflow-history-grouped-table';
 import WorkflowHistoryHeader from './workflow-history-header/workflow-history-header';
@@ -70,18 +71,23 @@ export default function WorkflowHistoryV2({ params }: Props) {
     [queryParams.historyEventStatuses, queryParams.historyEventTypes]
   );
 
+  const { data: wfExecutionDescription } = useSuspenseDescribeWorkflow({
+    ...params,
+  });
+  const { workflowExecutionInfo } = wfExecutionDescription;
+
   const {
     eventGroups,
     updateEvents: updateGrouperEvents,
     updatePendingEvents: updateGrouperPendingEvents,
   } = useWorkflowHistoryGrouper();
 
-  const {
-    historyQuery,
-    startLoadingHistory,
-    stopLoadingHistory,
-    fetchSingleNextPage,
-  } = useWorkflowHistoryFetcher(
+  const isWorkflowRunning =
+    !workflowExecutionInfo?.closeStatus ||
+    workflowExecutionInfo.closeStatus ===
+      'WORKFLOW_EXECUTION_CLOSE_STATUS_INVALID';
+
+  const { historyQuery, startLoadingHistory } = useWorkflowHistoryFetcher(
     {
       domain: wfHistoryRequestArgs.domain,
       cluster: wfHistoryRequestArgs.cluster,
@@ -90,14 +96,16 @@ export default function WorkflowHistoryV2({ params }: Props) {
       pageSize: wfHistoryRequestArgs.pageSize,
       waitForNewEvent: wfHistoryRequestArgs.waitForNewEvent,
     },
-    updateGrouperEvents,
-    WORKFLOW_HISTORY_FETCH_EVENTS_THROTTLE_MS_CONFIG
+    {
+      onEventsChange: updateGrouperEvents,
+      renderThrottleMs:
+        WORKFLOW_HISTORY_RENDER_FETCHED_EVENTS_THROTTLE_MS_CONFIG,
+      fetchThrottleMs: isWorkflowRunning
+        ? WORKFLOW_HISTORY_FETCH_EVENTS_THROTTLE_MS_CONFIG
+        : undefined,
+    }
   );
 
-  const { data: wfExecutionDescription } = useSuspenseDescribeWorkflow({
-    ...params,
-  });
-  const { workflowExecutionInfo } = wfExecutionDescription;
   const {
     data: result,
     hasNextPage,
@@ -153,14 +161,6 @@ export default function WorkflowHistoryV2({ params }: Props) {
     ]
   );
 
-  const filteredEventsCount = useMemo(
-    () =>
-      filteredEventGroupsById.reduce((acc, [_, group]) => {
-        return acc + group.events.length;
-      }, 0),
-    [filteredEventGroupsById]
-  );
-
   const { ungroupedViewUserPreference, setUngroupedViewUserPreference } =
     useContext(WorkflowHistoryContext);
 
@@ -199,20 +199,19 @@ export default function WorkflowHistoryV2({ params }: Props) {
     setUngroupedViewUserPreference,
   ]);
 
-  const [visibleGroupsRange, setVisibleGroupsRange] =
-    useThrottledState<VisibleHistoryRanges>(
-      {
-        groupedStartIndex: -1,
-        groupedEndIndex: -1,
-        ungroupedStartIndex: -1,
-        ungroupedEndIndex: -1,
-      },
-      WORKFLOW_HISTORY_SET_RANGE_THROTTLE_MS_CONFIG,
-      {
-        leading: false,
-        trailing: true,
-      }
-    );
+  const [_, setVisibleGroupsRange] = useThrottledState<VisibleHistoryRanges>(
+    {
+      groupedStartIndex: -1,
+      groupedEndIndex: -1,
+      ungroupedStartIndex: -1,
+      ungroupedEndIndex: -1,
+    },
+    WORKFLOW_HISTORY_SET_RANGE_THROTTLE_MS_CONFIG,
+    {
+      leading: false,
+      trailing: true,
+    }
+  );
 
   const selectedEventIdWithinGroup = useMemo(
     () =>
@@ -235,58 +234,9 @@ export default function WorkflowHistoryV2({ params }: Props) {
   const isLastPageEmpty =
     result?.pages?.[result?.pages?.length - 1]?.history?.events.length === 0;
 
-  const visibleGroupsHasMissingEvents = useMemo(
-    () =>
-      filteredEventGroupsById
-        .slice(
-          visibleGroupsRange.groupedStartIndex,
-          visibleGroupsRange.groupedEndIndex + 1
-        )
-        .some(([_, { hasMissingEvents }]) => hasMissingEvents),
-
-    [filteredEventGroupsById, visibleGroupsRange]
-  );
-
-  const ungroupedViewShouldLoadMoreEvents = useMemo(
-    () =>
-      isUngroupedHistoryViewEnabled &&
-      // Pre-load more as we're approaching the end
-      filteredEventsCount - visibleGroupsRange.ungroupedEndIndex <
-        WORKFLOW_HISTORY_PAGE_SIZE_CONFIG * 1,
-    [
-      isUngroupedHistoryViewEnabled,
-      filteredEventsCount,
-      visibleGroupsRange.ungroupedEndIndex,
-    ]
-  );
-
-  const keepLoadingMoreEvents = useMemo(() => {
-    if (shouldSearchForInitialEvent && !initialEventFound) return true;
-    if (visibleGroupsHasMissingEvents) return true;
-    if (ungroupedViewShouldLoadMoreEvents) return true;
-    return false;
-  }, [
-    shouldSearchForInitialEvent,
-    initialEventFound,
-    visibleGroupsHasMissingEvents,
-    ungroupedViewShouldLoadMoreEvents,
-  ]);
-
-  const manualFetchNextPage = useCallback(() => {
-    if (keepLoadingMoreEvents) {
-      startLoadingHistory();
-    } else {
-      fetchSingleNextPage();
-    }
-  }, [keepLoadingMoreEvents, startLoadingHistory, fetchSingleNextPage]);
-
   useEffect(() => {
-    if (keepLoadingMoreEvents) {
-      startLoadingHistory();
-    } else {
-      stopLoadingHistory();
-    }
-  }, [keepLoadingMoreEvents, startLoadingHistory, stopLoadingHistory]);
+    startLoadingHistory();
+  }, [startLoadingHistory]);
 
   const reachedEndOfAvailableHistory =
     (!hasNextPage && !isPending) ||
@@ -354,7 +304,7 @@ export default function WorkflowHistoryV2({ params }: Props) {
             toggleIsEventExpanded={toggleIsItemExpanded}
             error={error}
             hasMoreEvents={hasNextPage}
-            fetchMoreEvents={manualFetchNextPage}
+            fetchMoreEvents={startLoadingHistory}
             isFetchingMoreEvents={isFetchingNextPage}
           />
         ) : (
@@ -380,7 +330,7 @@ export default function WorkflowHistoryV2({ params }: Props) {
             toggleIsEventExpanded={toggleIsItemExpanded}
             error={error}
             hasMoreEvents={hasNextPage}
-            fetchMoreEvents={manualFetchNextPage}
+            fetchMoreEvents={startLoadingHistory}
             isFetchingMoreEvents={isFetchingNextPage}
           />
         )}
