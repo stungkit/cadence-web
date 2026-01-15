@@ -27,6 +27,7 @@ import useInitialSelectedEvent from '../workflow-history/hooks/use-initial-selec
 import useWorkflowHistoryFetcher from '../workflow-history/hooks/use-workflow-history-fetcher';
 import useWorkflowHistoryGrouper from '../workflow-history/hooks/use-workflow-history-grouper';
 import { WorkflowHistoryContext } from '../workflow-history/workflow-history-context-provider/workflow-history-context-provider';
+import filterGroupsByGroupStatus from '../workflow-history/workflow-history-filters-status/helpers/filter-groups-by-group-status';
 import workflowPageQueryParamsConfig from '../workflow-page/config/workflow-page-query-params.config';
 import { useSuspenseDescribeWorkflow } from '../workflow-page/hooks/use-describe-workflow';
 import { type WorkflowPageTabContentParams } from '../workflow-page/workflow-page-tab-content/workflow-page-tab-content.types';
@@ -35,6 +36,7 @@ import WORKFLOW_HISTORY_FETCH_EVENTS_THROTTLE_MS_CONFIG from './config/workflow-
 import workflowHistoryFiltersConfig from './config/workflow-history-filters.config';
 import WORKFLOW_HISTORY_RENDER_FETCHED_EVENTS_THROTTLE_MS_CONFIG from './config/workflow-history-render-fetched-events-throttle-ms.config';
 import WORKFLOW_HISTORY_SET_RANGE_THROTTLE_MS_CONFIG from './config/workflow-history-set-range-throttle-ms.config';
+import getNavigationBarEventsMenuItems from './helpers/get-navigation-bar-events-menu-items';
 import WorkflowHistoryGroupedTable from './workflow-history-grouped-table/workflow-history-grouped-table';
 import WorkflowHistoryHeader from './workflow-history-header/workflow-history-header';
 import WorkflowHistoryNavigationBar from './workflow-history-navigation-bar/workflow-history-navigation-bar';
@@ -144,13 +146,19 @@ export default function WorkflowHistoryV2({ params }: Props) {
     });
   }, [wfExecutionDescription, updateGrouperPendingEvents]);
 
-  const filteredEventGroupsById = useMemo(
+  const sortedEventGroupsEntries = useMemo(
     () =>
       sortBy(
         Object.entries(eventGroups),
         ([_, { firstEventId }]) => getSortableEventId(firstEventId),
         'ASC'
-      ).filter(([_, g]) =>
+      ),
+    [eventGroups]
+  );
+
+  const filteredEventGroupsEntries = useMemo(
+    () =>
+      sortedEventGroupsEntries.filter(([_, g]) =>
         workflowHistoryFiltersConfig.every((f) =>
           f.filterFunc(g, {
             historyEventTypes: queryParams.historyEventTypes,
@@ -159,7 +167,7 @@ export default function WorkflowHistoryV2({ params }: Props) {
         )
       ),
     [
-      eventGroups,
+      sortedEventGroupsEntries,
       queryParams.historyEventTypes,
       queryParams.historyEventStatuses,
     ]
@@ -205,7 +213,7 @@ export default function WorkflowHistoryV2({ params }: Props) {
 
   const ungroupedEventsInfo = useMemo<Array<UngroupedEventInfo>>(
     () =>
-      filteredEventGroupsById
+      filteredEventGroupsEntries
         .map(([_, group]) => [
           ...group.events.map((event, index) => ({
             id: event.eventId ?? event.computedEventId,
@@ -219,7 +227,7 @@ export default function WorkflowHistoryV2({ params }: Props) {
         ])
         .flat(1)
         .sort(compareUngroupedEvents),
-    [filteredEventGroupsById]
+    [filteredEventGroupsEntries]
   );
 
   const [_, setVisibleGroupsRange] = useThrottledState<VisibleHistoryRanges>(
@@ -251,7 +259,7 @@ export default function WorkflowHistoryV2({ params }: Props) {
   } = useInitialSelectedEvent({
     selectedEventId: selectedEventIdWithinGroup,
     eventGroups,
-    filteredEventGroupsEntries: filteredEventGroupsById,
+    filteredEventGroupsEntries,
   });
 
   const isLastPageEmpty =
@@ -326,6 +334,88 @@ export default function WorkflowHistoryV2({ params }: Props) {
     });
   }, [isUngroupedHistoryViewEnabled]);
 
+  const [scrollToEventId, setScrollToEventId] = useState<string | undefined>(
+    undefined
+  );
+
+  const scrollToEventIndex = useMemo(() => {
+    if (!scrollToEventId) return undefined;
+
+    return isUngroupedHistoryViewEnabled
+      ? ungroupedEventsInfo.findIndex((e) => e.id === scrollToEventId)
+      : filteredEventGroupsEntries.findIndex(([_, group]) =>
+          group.events.some((e) => e.eventId === scrollToEventId)
+        );
+  }, [
+    scrollToEventId,
+    isUngroupedHistoryViewEnabled,
+    ungroupedEventsInfo,
+    filteredEventGroupsEntries,
+  ]);
+
+  useEffect(() => {
+    const ref = isUngroupedHistoryViewEnabled
+      ? ungroupedTableVirtuosoRef
+      : groupedTableVirtuosoRef;
+
+    if (!ref.current) return;
+
+    if (scrollToEventIndex && scrollToEventIndex !== -1) {
+      ref.current.scrollToIndex({
+        index: scrollToEventIndex,
+        behavior: 'auto',
+        align: 'center',
+      });
+    }
+
+    setTimeout(() => setScrollToEventId(undefined), 2000);
+  }, [scrollToEventIndex, isUngroupedHistoryViewEnabled]);
+
+  const failedEventsMenuItems = useMemo(
+    () =>
+      getNavigationBarEventsMenuItems(sortedEventGroupsEntries, (group) =>
+        filterGroupsByGroupStatus(group, { historyEventStatuses: ['FAILED'] })
+      ),
+    [sortedEventGroupsEntries]
+  );
+
+  const pendingEventsMenuItems = useMemo(
+    () =>
+      getNavigationBarEventsMenuItems(sortedEventGroupsEntries, (group) =>
+        filterGroupsByGroupStatus(group, {
+          historyEventStatuses: ['PENDING'],
+        })
+      ),
+    [sortedEventGroupsEntries]
+  );
+
+  const onClickNavMenuEvent = useCallback(
+    (eventId: string) => {
+      const isEventVisible = filteredEventGroupsEntries.some(
+        ([_, eventGroup]) =>
+          eventGroup.events.some(
+            ({ eventId: eventIdInGroup }) => eventId === eventIdInGroup
+          )
+      );
+
+      if (!isEventVisible) {
+        setQueryParams(
+          { historyEventStatuses: undefined, historyEventTypes: undefined },
+          { replace: true }
+        );
+      }
+
+      setScrollToEventId(eventId);
+      if (!getIsItemExpanded(eventId)) toggleIsItemExpanded(eventId);
+    },
+    [
+      filteredEventGroupsEntries,
+      setQueryParams,
+      getIsItemExpanded,
+      toggleIsItemExpanded,
+    ]
+  );
+
   if (contentIsLoading) {
     return <SectionLoadingIndicator />;
   }
@@ -357,7 +447,7 @@ export default function WorkflowHistoryV2({ params }: Props) {
               }))
             }
             decodedPageUrlParams={decodedParams}
-            selectedEventId={selectedEventIdWithinGroup}
+            selectedEventId={scrollToEventId ?? selectedEventIdWithinGroup}
             resetToDecisionEventId={setResetToDecisionEventId}
             getIsEventExpanded={getIsItemExpanded}
             toggleIsEventExpanded={toggleIsItemExpanded}
@@ -368,7 +458,7 @@ export default function WorkflowHistoryV2({ params }: Props) {
           />
         ) : (
           <WorkflowHistoryGroupedTable
-            eventGroupsById={filteredEventGroupsById}
+            eventGroupsById={filteredEventGroupsEntries}
             virtuosoRef={groupedTableVirtuosoRef}
             initialStartIndex={initialEventGroupIndex}
             setVisibleRange={({ startIndex, endIndex }) =>
@@ -383,7 +473,9 @@ export default function WorkflowHistoryV2({ params }: Props) {
             workflowCloseStatus={workflowExecutionInfo?.closeStatus}
             workflowIsArchived={workflowExecutionInfo?.isArchived || false}
             workflowCloseTimeMs={workflowCloseTimeMs}
-            selectedEventId={queryParams.historySelectedEventId}
+            selectedEventId={
+              scrollToEventId ?? queryParams.historySelectedEventId
+            }
             resetToDecisionEventId={setResetToDecisionEventId}
             getIsEventExpanded={getIsItemExpanded}
             toggleIsEventExpanded={toggleIsItemExpanded}
@@ -411,6 +503,10 @@ export default function WorkflowHistoryV2({ params }: Props) {
         onScrollDown={handleScrollDown}
         areAllItemsExpanded={areAllItemsExpanded}
         onToggleAllItemsExpanded={toggleAreAllItemsExpanded}
+        isUngroupedView={isUngroupedHistoryViewEnabled}
+        failedEventsMenuItems={failedEventsMenuItems}
+        pendingEventsMenuItems={pendingEventsMenuItems}
+        onClickEvent={onClickNavMenuEvent}
       />
     </styled.Container>
   );
