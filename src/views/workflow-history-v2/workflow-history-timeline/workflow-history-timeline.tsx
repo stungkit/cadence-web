@@ -6,6 +6,7 @@ import { PatternLines } from '@visx/pattern';
 import { ParentSize } from '@visx/responsive';
 import { scaleLinear } from '@visx/scale';
 import { Bar } from '@visx/shape';
+import { StatefulPopover } from 'baseui/popover';
 import { Virtuoso } from 'react-virtuoso';
 
 import useStyletronClasses from '@/hooks/use-styletron-classes';
@@ -21,7 +22,11 @@ import {
   TIMELINE_LABEL_COLUMN_WIDTH,
   TIMELINE_SIDE_PADDING,
 } from './workflow-history-timeline.constants';
-import { cssStyles, styled } from './workflow-history-timeline.styles';
+import {
+  cssStyles,
+  styled,
+  overrides,
+} from './workflow-history-timeline.styles';
 import {
   type Props,
   type TimelineRow,
@@ -125,6 +130,8 @@ export default function WorkflowHistoryTimeline({
                 const rowStart = xScale(row.startTimeMs - workflowStartTimeMs);
                 const rowEnd = xScale(row.endTimeMs - workflowStartTimeMs);
 
+                const popoverOffset = (rowStart + rowEnd - contentWidth) / 2;
+
                 return (
                   <styled.RowContainer $isEven={isEven}>
                     <styled.LabelCell>
@@ -136,46 +143,64 @@ export default function WorkflowHistoryTimeline({
                       />
                     </styled.LabelCell>
                     <styled.TimelineCell>
-                      <styled.TimelineViewport>
-                        <styled.TimelineContent $widthPx={contentWidth}>
-                          <styled.TimelineSvg
-                            width={contentWidth}
-                            height={ROW_HEIGHT_PX - 12}
-                          >
-                            {isRunning && (
-                              <PatternLines
-                                id={`striped-pattern-${row.id}`}
-                                width={8}
-                                height={8}
-                                stroke={color}
-                                strokeWidth={2}
-                                orientation={['diagonal']}
-                              />
-                            )}
-                            <Group left={0} top={0}>
-                              <Bar
-                                x={rowStart}
-                                y={0}
-                                width={Math.max(5, rowEnd - rowStart)}
-                                height={ROW_HEIGHT_PX - 12}
-                                rx={2}
-                                onClick={() => {
-                                  onClickEvent(row.id);
-                                }}
-                                {...(isRunning
-                                  ? {
-                                      fill: `url(#striped-pattern-${row.id})`,
-                                      className: cls.barAnimated,
-                                    }
-                                  : {
-                                      fill: color,
-                                      className: cls.bar,
-                                    })}
-                              />
-                            </Group>
-                          </styled.TimelineSvg>
-                        </styled.TimelineContent>
-                      </styled.TimelineViewport>
+                      <StatefulPopover
+                        triggerType="hover"
+                        accessibilityType="tooltip"
+                        content={row.label}
+                        placement="bottom"
+                        ignoreBoundary
+                        overrides={overrides.popover}
+                        popoverMargin={0}
+                        popperOptions={{
+                          modifiers: {
+                            offset: {
+                              offset: `${popoverOffset}, 0`,
+                              enabled: true,
+                            },
+                          },
+                        }}
+                      >
+                        <styled.TimelineViewport>
+                          <styled.TimelineContent $widthPx={contentWidth}>
+                            <styled.TimelineSvg
+                              width={contentWidth}
+                              height={ROW_HEIGHT_PX - 12}
+                            >
+                              {isRunning && (
+                                <PatternLines
+                                  id={`striped-pattern-${row.id}`}
+                                  width={8}
+                                  height={8}
+                                  stroke={color}
+                                  strokeWidth={2}
+                                  orientation={['diagonal']}
+                                />
+                              )}
+                              <Group left={0} top={0}>
+                                <Bar
+                                  x={rowStart}
+                                  y={0}
+                                  width={Math.max(5, rowEnd - rowStart)}
+                                  height={ROW_HEIGHT_PX - 12}
+                                  rx={2}
+                                  onClick={() => {
+                                    onClickEvent(row.id);
+                                  }}
+                                  {...(isRunning
+                                    ? {
+                                        fill: `url(#striped-pattern-${row.id})`,
+                                        className: cls.barAnimated,
+                                      }
+                                    : {
+                                        fill: color,
+                                        className: cls.bar,
+                                      })}
+                                />
+                              </Group>
+                            </styled.TimelineSvg>
+                          </styled.TimelineContent>
+                        </styled.TimelineViewport>
+                      </StatefulPopover>
                     </styled.TimelineCell>
                   </styled.RowContainer>
                 );
