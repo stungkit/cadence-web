@@ -1,6 +1,7 @@
 import { createElement } from 'react';
 
 import formatDate from '@/utils/data-formatters/format-date';
+import CronScheduleWithDescription from '@/views/shared/cron-schedule-description/cron-schedule-description';
 import WorkflowHistoryEventDetailsTaskListLink from '@/views/shared/workflow-history-event-details-task-list-link/workflow-history-event-details-task-list-link';
 import WorkflowStatusTag from '@/views/shared/workflow-status-tag/workflow-status-tag';
 import getWorkflowStatusTagProps from '@/views/workflow-page/helpers/get-workflow-status-tag-props';
@@ -93,8 +94,13 @@ const workflowSummaryDetailsConfig: WorkflowSummaryDetailsConfig[] = [
   {
     key: 'cronSchedule',
     getLabel: () => 'CRON schedule',
-    valueComponent: ({ firstEvent }) =>
-      firstEvent?.workflowExecutionStartedEventAttributes?.cronSchedule,
+    valueComponent: ({ firstEvent }) => {
+      const cronSchedule =
+        firstEvent?.workflowExecutionStartedEventAttributes?.cronSchedule;
+      if (cronSchedule) {
+        return createElement(CronScheduleWithDescription, { cronSchedule });
+      }
+    },
     hide: ({ firstEvent }) =>
       !firstEvent?.workflowExecutionStartedEventAttributes?.cronSchedule,
   },
