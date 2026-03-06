@@ -4,10 +4,7 @@ import {
 } from '@/hooks/use-page-query-params/use-page-query-params.types';
 import type workflowPageQueryParamsConfig from '@/views/workflow-page/config/workflow-page-query-params.config';
 
-import {
-  type HistoryEventGroupType,
-  type HistoryEventsGroup,
-} from '../workflow-history-v2.types';
+import { type HistoryEventsGroup } from '../workflow-history-v2.types';
 
 type WorkflowPageQueryParamsConfig = typeof workflowPageQueryParamsConfig;
 
@@ -30,16 +27,15 @@ export type EventGroupCategoryFilterValue = {
   historyEventTypes: EventGroupCategory[] | undefined;
 };
 
+export type EventGroupTypeToCategoryConfig =
+  | EventGroupCategory
+  | ((g: HistoryEventsGroup) => EventGroupCategory);
+
 export type EventGroupCategoryColors = {
   content: string;
   background: string;
   backgroundHighlighted: string;
 };
-
-export type EventGroupCategoryConfig =
-  // TODO @adhitya.mamallan - change this to use an array of group types
-  // One filtering type maps to multiple group types
-  HistoryEventGroupType | ((g: HistoryEventsGroup) => boolean);
 
 export type EventGroupStatus = 'COMPLETED' | 'FAILED' | 'CANCELED' | 'PENDING';
 

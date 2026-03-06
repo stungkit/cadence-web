@@ -1,6 +1,6 @@
 import parseGrpcTimestamp from '@/utils/datetime/parse-grpc-timestamp';
 
-import getEventGroupFilteringType from '../../workflow-history-event-group/helpers/get-event-group-filtering-type';
+import getEventGroupCategory from '../../helpers/get-event-group-category';
 import { type HistoryEventsGroup } from '../../workflow-history-v2.types';
 import { type TimelineRow } from '../workflow-history-timeline.types';
 
@@ -39,14 +39,14 @@ export default function getTimelineRowFromEventGroup(
     groupEndMs = group.timeMs;
   }
 
-  const groupType = getEventGroupFilteringType(group);
+  const eventGroupCategory = getEventGroupCategory(group);
 
   return {
     id: groupId,
     label: group.label,
     startTimeMs: groupStartMs,
     endTimeMs: groupEndMs,
-    groupType,
+    category: eventGroupCategory,
     status: group.status,
     group,
   };
