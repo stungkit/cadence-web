@@ -1,6 +1,8 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useCallback } from 'react';
 
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
 import { MdDeleteOutline } from 'react-icons/md';
 
 import Button from '@/components/button/button';
@@ -21,6 +23,8 @@ import domainBatchActionsNewActionFloatingBarConfig from '../config/domain-batch
 import DomainBatchActionsNewActionFloatingBar from '../domain-batch-actions-new-action-floating-bar/domain-batch-actions-new-action-floating-bar';
 import DomainBatchActionsNewActionInfoBanner from '../domain-batch-actions-new-action-info-banner/domain-batch-actions-new-action-info-banner';
 import DomainBatchActionsNewActionParams from '../domain-batch-actions-new-action-params/domain-batch-actions-new-action-params';
+import batchActionParamsSchema from '../domain-batch-actions-new-action-params/schemas/batch-action-params-schema';
+import { BATCH_ACTION_RPS_DEFAULT } from '../domain-batch-actions.constants';
 
 import {
   overrides,
@@ -35,8 +39,26 @@ export default function DomainBatchActionsNewActionDetail({
 }: Props) {
   const [queryParams] = usePageQueryParams(domainPageQueryParamsConfig);
 
-  const [description, setDescription] = useState('');
-  const [rps, setRps] = useState(100);
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isValid, isSubmitted },
+  } = useForm({
+    resolver: zodResolver(batchActionParamsSchema),
+    defaultValues: { description: '', rps: BATCH_ACTION_RPS_DEFAULT },
+    mode: 'onChange',
+  });
+
+  const hasValidationErrors = isSubmitted && !isValid;
+
+  const handleActionClick = useCallback(
+    (_actionId: string) => {
+      handleSubmit(() => {
+        // TODO: handle action execution
+      })();
+    },
+    [handleSubmit]
+  );
 
   // Reuse the workflows tab's column selection (persisted per-domain in
   // localStorage) so the user sees the same search attributes they picked
@@ -89,10 +111,8 @@ export default function DomainBatchActionsNewActionDetail({
       </styled.Header>
       <DomainBatchActionsNewActionInfoBanner />
       <DomainBatchActionsNewActionParams
-        description={description}
-        rps={rps}
-        onDescriptionChange={setDescription}
-        onRpsChange={setRps}
+        control={control}
+        fieldErrors={isSubmitted ? errors : {}}
       />
       <WorkflowsHeader
         pageQueryParamsConfig={domainPageQueryParamsConfig}
@@ -132,7 +152,8 @@ export default function DomainBatchActionsNewActionDetail({
             selectedCount={workflows.length}
             totalCount={workflows.length}
             actions={domainBatchActionsNewActionFloatingBarConfig}
-            onActionClick={() => {}}
+            onActionClick={handleActionClick}
+            disabled={hasValidationErrors}
           />
         </styled.FloatingBarSlot>
       )}
