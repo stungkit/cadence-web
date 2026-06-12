@@ -1,9 +1,10 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 
-import { useSnackbar } from 'baseui/snackbar';
+import { Banner, HIERARCHY, KIND } from 'baseui/banner';
 import { MdErrorOutline } from 'react-icons/md';
 
+import ErrorPanel from '@/components/error-panel/error-panel';
 import SectionLoadingIndicator from '@/components/section-loading-indicator/section-loading-indicator';
 import usePageQueryParams from '@/hooks/use-page-query-params/use-page-query-params';
 import domainPageQueryParamsConfig from '@/views/domain-page/config/domain-page-query-params.config';
@@ -75,6 +76,7 @@ export default function DomainBatchActions(props: DomainPageTabContentProps) {
     data: batchActionDetail,
     isLoading: isLoadingBatchActionDetail,
     error: batchActionDetailError,
+    refetch: refetchBatchActionDetail,
   } = useDescribeBatchAction({
     domain: props.domain,
     cluster: props.cluster,
@@ -85,22 +87,6 @@ export default function DomainBatchActions(props: DomainPageTabContentProps) {
         ? BATCH_ACTION_DETAIL_REFETCH_INTERVAL
         : false,
   });
-
-  const { enqueue, dequeue } = useSnackbar();
-  const batchActionDetailErrorMessage = batchActionDetailError
-    ? batchActionDetailError.message || 'Failed to fetch batch action details'
-    : undefined;
-  useEffect(() => {
-    if (!batchActionDetailErrorMessage) return;
-    enqueue({
-      message: batchActionDetailErrorMessage,
-      startEnhancer: MdErrorOutline,
-      actionMessage: 'OK',
-      actionOnClick: () => dequeue(),
-    });
-    // Fire only when the error message itself changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [batchActionDetailErrorMessage]);
 
   if (isLoading) {
     return <SectionLoadingIndicator />;
@@ -170,12 +156,42 @@ export default function DomainBatchActions(props: DomainPageTabContentProps) {
         )}
         {!isDraftSelected &&
           selectedActionId &&
-          (isLoadingBatchActionDetail || batchActionDetail) && (
-            <DomainBatchActionDetail
-              batchAction={batchActionDetail}
-              loading={isLoadingBatchActionDetail}
+          (batchActionDetailError && !batchActionDetail ? (
+            <ErrorPanel
+              error={batchActionDetailError}
+              message="Failed to load batch action details"
+              actions={[
+                {
+                  kind: 'callback',
+                  label: 'Retry',
+                  onClick: () => refetchBatchActionDetail(),
+                },
+              ]}
             />
-          )}
+          ) : (
+            (isLoadingBatchActionDetail || batchActionDetail) && (
+              <>
+                {batchActionDetailError && batchActionDetail && (
+                  <Banner
+                    hierarchy={HIERARCHY.low}
+                    kind={KIND.warning}
+                    artwork={{ icon: MdErrorOutline }}
+                    action={{
+                      label: 'Retry',
+                      onClick: () => refetchBatchActionDetail(),
+                    }}
+                  >
+                    Showing last known data. Could not refresh batch action
+                    details.
+                  </Banner>
+                )}
+                <DomainBatchActionDetail
+                  batchAction={batchActionDetail}
+                  loading={isLoadingBatchActionDetail}
+                />
+              </>
+            )
+          ))}
       </styled.DetailPanel>
     </styled.Container>
   );
