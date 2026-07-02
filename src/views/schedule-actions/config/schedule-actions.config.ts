@@ -7,6 +7,9 @@ import {
 import { type PauseScheduleResponse } from '@/route-handlers/pause-schedule/pause-schedule.types';
 import { type UnpauseScheduleResponse } from '@/route-handlers/unpause-schedule/unpause-schedule.types';
 
+import ScheduleActionPauseForm from '../schedule-action-pause-form/schedule-action-pause-form';
+import { type PauseScheduleFormData } from '../schedule-action-pause-form/schedule-action-pause-form.types';
+import { pauseScheduleFormSchema } from '../schedule-action-pause-form/schemas/pause-schedule-form-schema';
 import {
   type PauseScheduleSubmissionData,
   type ScheduleAction,
@@ -14,7 +17,7 @@ import {
 
 const pauseScheduleActionConfig: ScheduleAction<
   PauseScheduleResponse,
-  undefined,
+  PauseScheduleFormData,
   PauseScheduleSubmissionData
 > = {
   id: 'pause',
@@ -27,7 +30,10 @@ const pauseScheduleActionConfig: ScheduleAction<
       render: () =>
         'Pausing stops new executions but does not stop workflows already in progress.',
     },
-    withForm: false,
+    withForm: true,
+    form: ScheduleActionPauseForm,
+    formSchema: pauseScheduleFormSchema,
+    transformFormDataToSubmission: (formData) => formData,
   },
   icon: MdPauseCircleOutline,
   getRunnableStatus: (schedule) =>
@@ -36,10 +42,6 @@ const pauseScheduleActionConfig: ScheduleAction<
       : 'RUNNABLE',
   apiRoute: (params) =>
     `/api/domains/${encodeURIComponent(params.domain)}/${encodeURIComponent(params.cluster)}/schedules/${encodeURIComponent(params.scheduleId)}/pause`,
-  // TODO: get reason from UI form
-  getConfirmSubmissionData: () => ({
-    reason: 'Paused from Cadence Web UI',
-  }),
   renderSuccessMessage: () => 'Schedule has been paused.',
 };
 

@@ -46,6 +46,8 @@ export default function ScheduleActionsModalContent<
     resolver: action.modal.formSchema
       ? zodResolver(action.modal.formSchema)
       : undefined,
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
     defaultValues: initialFormValues as DefaultValues<OptionalFormData>,
   });
 
@@ -103,9 +105,6 @@ export default function ScheduleActionsModalContent<
     });
   };
 
-  const Form = action.modal.form;
-  const isSubmitDisabled = Object.keys(validationErrors).length > 0;
-
   const modalBanner = action.modal.banner ? (
     <Banner
       hierarchy={HIERARCHY.low}
@@ -118,6 +117,9 @@ export default function ScheduleActionsModalContent<
       {action.modal.banner.render(schedule)}
     </Banner>
   ) : null;
+
+  const Form = action.modal.form;
+  const isSubmitDisabled = Object.keys(validationErrors).length > 0;
 
   return (
     <>
