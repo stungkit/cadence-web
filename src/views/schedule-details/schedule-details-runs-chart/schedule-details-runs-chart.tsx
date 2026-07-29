@@ -7,6 +7,9 @@ import { MdGpsFixed, MdZoomIn, MdZoomOut } from 'react-icons/md';
 import Button from '@/components/button/button';
 import useCurrentTimeMs from '@/hooks/use-current-time-ms/use-current-time-ms';
 
+import buildScheduleRunsChartSeriesFixture from '../schedule-details-runs-chart-series/__fixtures__/schedule-details-runs-chart-series-fixture';
+import hasScheduleRunsChartData from '../schedule-details-runs-chart-series/helpers/has-schedule-runs-chart-data';
+import ScheduleDetailsRunsChartSeries from '../schedule-details-runs-chart-series/schedule-details-runs-chart-series';
 import ScheduleDetailsRunsChartTimeline from '../schedule-details-runs-chart-timeline/schedule-details-runs-chart-timeline';
 
 import createChartXScale from './helpers/create-chart-x-scale';
@@ -32,8 +35,25 @@ export default function ScheduleDetailsRunsChart(_props: Props) {
     initialSize: { width: 0, height: CHART_HEIGHT_PX },
   });
 
+  // TODO(PR09e): replace the static fixture with live schedule workflow data.
+  const chartData = useMemo(
+    () => buildScheduleRunsChartSeriesFixture(nowMs),
+    [nowMs]
+  );
+  const hasChartData = hasScheduleRunsChartData(chartData);
+
   const xScale = useMemo(() => {
-    const timeWindow = resolveChartTimeWindow({ timestampsMs: [], nowMs });
+    const timestampsMs = [
+      ...chartData.runs.map(({ scheduledTimeMs }) => scheduledTimeMs),
+      ...chartData.skippedExecutions.map(
+        ({ scheduledTimeMs }) => scheduledTimeMs
+      ),
+    ];
+    const timeWindow = resolveChartTimeWindow({
+      timestampsMs,
+      nowMs,
+      nextExecutionMs: chartData.nextExecutionTimeMs,
+    });
     const range = resolveChartPixelRange({ widthPx: width });
 
     if (timeWindow === null || range === null) {
@@ -41,7 +61,7 @@ export default function ScheduleDetailsRunsChart(_props: Props) {
     }
 
     return createChartXScale({ timeWindow, range });
-  }, [nowMs, width]);
+  }, [chartData, nowMs, width]);
 
   return (
     <styled.Container>
@@ -87,19 +107,22 @@ export default function ScheduleDetailsRunsChart(_props: Props) {
         role="region"
         aria-label={CHART_REGION_ARIA_LABEL}
       >
-        {xScale === null ? (
+        {xScale === null || !hasChartData ? (
           <styled.EmptyState role="status">
             {CHART_EMPTY_STATE_MESSAGE}
           </styled.EmptyState>
         ) : (
-          <styled.ChartSvg width={width} height={CHART_HEIGHT_PX}>
-            <ScheduleDetailsRunsChartTimeline
-              width={width}
-              height={CHART_HEIGHT_PX}
-              xScale={xScale}
-              nowMs={nowMs}
-            />
-          </styled.ChartSvg>
+          <>
+            <styled.ChartSvg width={width} height={CHART_HEIGHT_PX}>
+              <ScheduleDetailsRunsChartTimeline
+                width={width}
+                height={CHART_HEIGHT_PX}
+                xScale={xScale}
+                nowMs={nowMs}
+              />
+            </styled.ChartSvg>
+            <ScheduleDetailsRunsChartSeries xScale={xScale} data={chartData} />
+          </>
         )}
       </styled.ChartRegion>
     </styled.Container>
