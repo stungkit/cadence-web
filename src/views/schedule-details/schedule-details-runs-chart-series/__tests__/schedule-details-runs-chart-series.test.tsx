@@ -32,6 +32,7 @@ const WINDOW_END_MS = Date.UTC(2024, 0, 1, 6, 0);
 const EMPTY_DATA: ChartSeriesData = {
   runs: [],
   skippedExecutions: [],
+  unconfirmedExecutions: [],
   nextExecutionTimeMs: null,
 };
 
@@ -52,6 +53,7 @@ describe(ScheduleDetailsRunsChartSeries.name, () => {
           },
         ],
         skippedExecutions: [],
+        unconfirmedExecutions: [],
         nextExecutionTimeMs: null,
       },
     });
@@ -77,6 +79,7 @@ describe(ScheduleDetailsRunsChartSeries.name, () => {
           },
         ],
         skippedExecutions: [],
+        unconfirmedExecutions: [],
         nextExecutionTimeMs: null,
       },
     });
@@ -102,6 +105,21 @@ describe(ScheduleDetailsRunsChartSeries.name, () => {
     ).toBeInTheDocument();
   });
 
+  it('renders a marker for each unconfirmed execution', () => {
+    setup({
+      data: {
+        ...EMPTY_DATA,
+        unconfirmedExecutions: [
+          { scheduledTimeMs: Date.UTC(2024, 0, 1, 3, 0) },
+        ],
+      },
+    });
+
+    expect(
+      screen.getByTestId(CHART_SERIES_TEST_IDS.loadingExecutionMarker)
+    ).toBeInTheDocument();
+  });
+
   it('renders the next execution marker when set', () => {
     setup({
       data: {
@@ -121,6 +139,37 @@ describe(ScheduleDetailsRunsChartSeries.name, () => {
     expect(
       screen.queryByTestId(CHART_SERIES_TEST_IDS.nextExecutionMarker)
     ).not.toBeInTheDocument();
+  });
+
+  it('renders markers in timeline order so right-side icons stack above left-side icons', () => {
+    setup({
+      data: {
+        runs: [
+          {
+            runId: 'run-1',
+            scheduledTimeMs: Date.UTC(2024, 0, 1, 4, 0),
+            status: WORKFLOW_STATUSES.completed,
+          },
+        ],
+        skippedExecutions: [{ scheduledTimeMs: Date.UTC(2024, 0, 1, 2, 0) }],
+        unconfirmedExecutions: [
+          { scheduledTimeMs: Date.UTC(2024, 0, 1, 1, 0) },
+        ],
+        nextExecutionTimeMs: Date.UTC(2024, 0, 1, 5, 0),
+      },
+    });
+
+    const overlay = screen.getByTestId(CHART_SERIES_TEST_IDS.overlay);
+    const markerTestIds = Array.from(overlay.children).map((child) =>
+      child.getAttribute('data-testid')
+    );
+
+    expect(markerTestIds).toEqual([
+      CHART_SERIES_TEST_IDS.loadingExecutionMarker,
+      CHART_SERIES_TEST_IDS.skippedExecutionMarker,
+      CHART_SERIES_TEST_IDS.runMarker,
+      CHART_SERIES_TEST_IDS.nextExecutionMarker,
+    ]);
   });
 });
 

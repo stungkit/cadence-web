@@ -16,8 +16,15 @@ export type ChartSeriesExecutionPoint = {
 export type ChartSeriesData = {
   runs: ChartSeriesRun[];
   skippedExecutions: ChartSeriesExecutionPoint[];
+  unconfirmedExecutions: ChartSeriesExecutionPoint[];
   nextExecutionTimeMs: number | null;
 };
+
+export type ChartSeriesMarker =
+  | { kind: 'run'; scheduledTimeMs: number; runs: ChartSeriesRun[] }
+  | { kind: 'skipped'; scheduledTimeMs: number }
+  | { kind: 'loading'; scheduledTimeMs: number }
+  | { kind: 'next'; scheduledTimeMs: number };
 
 export type Props = {
   xScale: ChartXScale;

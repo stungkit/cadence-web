@@ -40,6 +40,7 @@ export default function ScheduleDetailsRunsChart({ params }: Props) {
     domain: params.domain,
     cluster: params.cluster,
     scheduleId: params.scheduleId,
+    nowMs,
   });
   const hasChartData = hasScheduleRunsChartData(chartData);
 
@@ -47,6 +48,9 @@ export default function ScheduleDetailsRunsChart({ params }: Props) {
     const timestampsMs = [
       ...chartData.runs.map(({ scheduledTimeMs }) => scheduledTimeMs),
       ...chartData.skippedExecutions.map(
+        ({ scheduledTimeMs }) => scheduledTimeMs
+      ),
+      ...chartData.unconfirmedExecutions.map(
         ({ scheduledTimeMs }) => scheduledTimeMs
       ),
     ];
