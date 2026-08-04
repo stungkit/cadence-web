@@ -6,6 +6,7 @@ import { render, screen } from '@/test-utils/rtl';
 
 import { WORKFLOW_STATUSES } from '@/views/shared/workflow-status-tag/workflow-status-tag.constants';
 
+import { CHART_RUN_POPOVER_TEST_IDS } from '../../schedule-details-runs-chart/schedule-details-runs-chart.constants';
 import { type Props as GlyphProps } from '../../schedule-details-runs-chart-glyph/schedule-details-runs-chart-glyph.types';
 import ScheduleDetailsRunsChartSeries from '../schedule-details-runs-chart-series';
 import { CHART_SERIES_TEST_IDS } from '../schedule-details-runs-chart-series.constants';
@@ -27,6 +28,36 @@ jest.mock(
     }
 );
 
+jest.mock(
+  '../../schedule-details-runs-chart-popover-trigger/schedule-details-runs-chart-popover-trigger',
+  () =>
+    function MockScheduleDetailsRunsChartPopoverTrigger({
+      testId,
+      children,
+    }: {
+      testId: string;
+      children?: React.ReactNode;
+    }) {
+      return <div data-testid={testId}>{children}</div>;
+    }
+);
+
+const mockDomain = 'test-domain';
+const mockCluster = 'test-cluster';
+
+const mockRun = (
+  overrides: Partial<ChartSeriesData['runs'][number]> &
+    Pick<
+      ChartSeriesData['runs'][number],
+      'runId' | 'scheduledTimeMs' | 'status'
+    >
+) => ({
+  workflowId: 'wf-1',
+  startedTimeMs: null,
+  endedTimeMs: null,
+  ...overrides,
+});
+
 const WINDOW_START_MS = Date.UTC(2024, 0, 1, 0, 0);
 const WINDOW_END_MS = Date.UTC(2024, 0, 1, 6, 0);
 const EMPTY_DATA: ChartSeriesData = {
@@ -41,16 +72,16 @@ describe(ScheduleDetailsRunsChartSeries.name, () => {
     setup({
       data: {
         runs: [
-          {
+          mockRun({
             runId: 'run-1',
             scheduledTimeMs: Date.UTC(2024, 0, 1, 1, 0),
             status: WORKFLOW_STATUSES.completed,
-          },
-          {
+          }),
+          mockRun({
             runId: 'run-2',
             scheduledTimeMs: Date.UTC(2024, 0, 1, 2, 0),
             status: WORKFLOW_STATUSES.failed,
-          },
+          }),
         ],
         skippedExecutions: [],
         unconfirmedExecutions: [],
@@ -67,16 +98,16 @@ describe(ScheduleDetailsRunsChartSeries.name, () => {
     setup({
       data: {
         runs: [
-          {
+          mockRun({
             runId: 'run-1',
             scheduledTimeMs: Date.UTC(2024, 0, 1, 1, 0),
             status: WORKFLOW_STATUSES.completed,
-          },
-          {
+          }),
+          mockRun({
             runId: 'run-2',
             scheduledTimeMs: Date.UTC(2024, 0, 1, 1, 0),
             status: WORKFLOW_STATUSES.failed,
-          },
+          }),
         ],
         skippedExecutions: [],
         unconfirmedExecutions: [],
@@ -141,15 +172,41 @@ describe(ScheduleDetailsRunsChartSeries.name, () => {
     ).not.toBeInTheDocument();
   });
 
+  it('renders a popover trigger for the next execution when set', () => {
+    setup({
+      data: {
+        ...EMPTY_DATA,
+        nextExecutionTimeMs: Date.UTC(2024, 0, 1, 5, 0),
+      },
+    });
+
+    expect(
+      screen.getByTestId(CHART_RUN_POPOVER_TEST_IDS.nextTrigger)
+    ).toBeInTheDocument();
+  });
+
+  it('renders a popover trigger for each skipped execution', () => {
+    setup({
+      data: {
+        ...EMPTY_DATA,
+        skippedExecutions: [{ scheduledTimeMs: Date.UTC(2024, 0, 1, 3, 0) }],
+      },
+    });
+
+    expect(
+      screen.getByTestId(CHART_RUN_POPOVER_TEST_IDS.skippedTrigger)
+    ).toBeInTheDocument();
+  });
+
   it('renders markers in timeline order so right-side icons stack above left-side icons', () => {
     setup({
       data: {
         runs: [
-          {
+          mockRun({
             runId: 'run-1',
             scheduledTimeMs: Date.UTC(2024, 0, 1, 4, 0),
             status: WORKFLOW_STATUSES.completed,
-          },
+          }),
         ],
         skippedExecutions: [{ scheduledTimeMs: Date.UTC(2024, 0, 1, 2, 0) }],
         unconfirmedExecutions: [
@@ -166,9 +223,9 @@ describe(ScheduleDetailsRunsChartSeries.name, () => {
 
     expect(markerTestIds).toEqual([
       CHART_SERIES_TEST_IDS.loadingExecutionMarker,
-      CHART_SERIES_TEST_IDS.skippedExecutionMarker,
-      CHART_SERIES_TEST_IDS.runMarker,
-      CHART_SERIES_TEST_IDS.nextExecutionMarker,
+      CHART_RUN_POPOVER_TEST_IDS.skippedTrigger,
+      CHART_RUN_POPOVER_TEST_IDS.runTrigger,
+      CHART_RUN_POPOVER_TEST_IDS.nextTrigger,
     ]);
   });
 });
@@ -181,6 +238,8 @@ function setup({ data }: { data: ChartSeriesData }) {
         range: [0, 800],
       })}
       data={data}
+      domain={mockDomain}
+      cluster={mockCluster}
     />
   );
 }

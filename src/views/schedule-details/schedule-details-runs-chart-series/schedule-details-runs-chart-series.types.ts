@@ -3,10 +3,14 @@ import { type WorkflowStatus } from '@/views/shared/workflow-status-tag/workflow
 import { type ChartXScale } from '../schedule-details-runs-chart/schedule-details-runs-chart.types';
 
 export type ChartSeriesRun = {
+  workflowId: string;
   runId: string;
   scheduledTimeMs: number;
   status: WorkflowStatus;
+  startedTimeMs: number | null;
+  endedTimeMs: number | null;
   isBackfill?: boolean;
+  backfillId?: string;
 };
 
 export type ChartSeriesExecutionPoint = {
@@ -29,4 +33,6 @@ export type ChartSeriesMarker =
 export type Props = {
   xScale: ChartXScale;
   data: ChartSeriesData;
+  domain: string;
+  cluster: string;
 };

@@ -19,9 +19,12 @@ describe(hasScheduleRunsChartData.name, () => {
       hasScheduleRunsChartData({
         runs: [
           {
+            workflowId: 'wf-1',
             runId: 'run-1',
             scheduledTimeMs: 1,
             status: WORKFLOW_STATUSES.completed,
+            startedTimeMs: null,
+            endedTimeMs: null,
           },
         ],
         skippedExecutions: [],

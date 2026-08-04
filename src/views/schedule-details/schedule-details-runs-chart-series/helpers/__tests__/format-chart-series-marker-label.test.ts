@@ -12,9 +12,12 @@ describe(formatChartSeriesRunGroupLabel.name, () => {
     expect(
       formatChartSeriesRunGroupLabel([
         {
+          workflowId: 'wf-1',
           runId: 'run-1',
           scheduledTimeMs,
           status: WORKFLOW_STATUSES.completed,
+          startedTimeMs: null,
+          endedTimeMs: null,
         },
       ])
     ).toBe(
@@ -28,14 +31,20 @@ describe(formatChartSeriesRunGroupLabel.name, () => {
     expect(
       formatChartSeriesRunGroupLabel([
         {
+          workflowId: 'wf-1',
           runId: 'run-1',
           scheduledTimeMs,
           status: WORKFLOW_STATUSES.completed,
+          startedTimeMs: null,
+          endedTimeMs: null,
         },
         {
+          workflowId: 'wf-2',
           runId: 'run-2',
           scheduledTimeMs,
           status: WORKFLOW_STATUSES.failed,
+          startedTimeMs: null,
+          endedTimeMs: null,
         },
       ])
     ).toBe(`2 schedule runs at ${new Date(scheduledTimeMs).toISOString()}`);
