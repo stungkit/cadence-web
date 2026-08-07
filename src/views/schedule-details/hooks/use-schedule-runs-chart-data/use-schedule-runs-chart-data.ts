@@ -120,13 +120,18 @@ export default function useScheduleRunsChartData({
       nextExecutionTimeMs,
     };
   }, [nextExecutionTimeMs, unconfirmedExecutions, runs, skippedExecutions]);
-
   return {
     data,
+    cronExpression,
     isLoading:
       describeQuery.isLoading ||
       domainQuery.isLoading ||
       workflowsQuery.isLoading,
     timelineStartMs: timelineBounds.timelineStartMs,
+    oldestLoadedScheduleTimeMs,
+    hasNextPage: workflowsQuery.hasNextPage ?? false,
+    isFetchingNextPage: workflowsQuery.isFetchingNextPage,
+    isFetchNextPageError: workflowsQuery.isFetchNextPageError,
+    fetchNextPage: workflowsQuery.fetchNextPage,
   };
 }
