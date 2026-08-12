@@ -1,0 +1,71 @@
+import React from 'react';
+
+import EventDetailsSingleEntry from '../workflow-history-event-details-entry/workflow-history-event-details-entry';
+
+import getDetailsFieldLabel from './helpers/get-details-field-label';
+import { styled } from './workflow-history-event-details-group.styles';
+import {
+  type EventDetailsLabelKind,
+  type Props,
+} from './workflow-history-event-details-group.types';
+
+export default function WorkflowHistoryEventDetailsGroup({
+  entries,
+  parentGroupPath = '',
+  decodedPageUrlParams,
+}: Props) {
+  return (
+    <>
+      {entries.map((entry, index) => {
+        let labelKind: EventDetailsLabelKind = 'regular';
+        if (entry.isGroup) {
+          labelKind = 'group';
+        } else if (entry.isNegative) {
+          labelKind = 'negative';
+        }
+
+        return (
+          <styled.DetailsRow
+            data-testid="details-row"
+            $forceWrap={entry.isGroup}
+            key={`${entry.key}-${entry.path}-${index}${
+              !entry.isGroup && entry.renderConfig
+                ? '-' + entry.renderConfig.name
+                : ''
+            }`}
+          >
+            <styled.DetailsLabel
+              $forceWrap={entry.isGroup}
+              $labelKind={labelKind}
+            >
+              {getDetailsFieldLabel(entry, parentGroupPath)}
+            </styled.DetailsLabel>
+            <styled.DetailsValue
+              $forceWrap={entry.isGroup}
+              $isNegative={entry.isNegative}
+            >
+              {entry.isGroup ? (
+                <styled.IndentedDetails>
+                  <WorkflowHistoryEventDetailsGroup
+                    entries={entry.groupEntries}
+                    parentGroupPath={entry.path}
+                    decodedPageUrlParams={decodedPageUrlParams}
+                  />
+                </styled.IndentedDetails>
+              ) : (
+                <EventDetailsSingleEntry
+                  entryKey={entry.key}
+                  entryPath={entry.path}
+                  entryValue={entry.value}
+                  renderConfig={entry.renderConfig}
+                  isNegative={entry.isNegative}
+                  {...decodedPageUrlParams}
+                />
+              )}
+            </styled.DetailsValue>
+          </styled.DetailsRow>
+        );
+      })}
+    </>
+  );
+}
