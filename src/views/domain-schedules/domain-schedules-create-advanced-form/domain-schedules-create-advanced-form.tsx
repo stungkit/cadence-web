@@ -350,7 +350,7 @@ export default function DomainSchedulesCreateAdvancedForm({
               <styled.SchedulePeriodInputLabel
                 htmlFor={CREATE_SCHEDULE_ADVANCED_FIELD_IDS.startTime}
               >
-                Start date
+                Start time
               </styled.SchedulePeriodInputLabel>
               <FormControl
                 error={startTimeErrorMessage}
@@ -390,7 +390,7 @@ export default function DomainSchedulesCreateAdvancedForm({
               <styled.SchedulePeriodInputLabel
                 htmlFor={CREATE_SCHEDULE_ADVANCED_FIELD_IDS.endTime}
               >
-                End date
+                End time
               </styled.SchedulePeriodInputLabel>
               <FormControl
                 error={endTimeErrorMessage}
@@ -418,9 +418,10 @@ export default function DomainSchedulesCreateAdvancedForm({
                       }}
                       error={Boolean(endTimeErrorMessage)}
                       size="compact"
-                      timeSelectEnd
+                      timeSelectStart
                       formatString="yyyy/MM/dd HH:mm"
                       clearable
+                      overrides={overrides.endTimeDatePicker}
                     />
                   )}
                 />
