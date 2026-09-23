@@ -4,6 +4,7 @@ import { render, screen, userEvent } from '@/test-utils/rtl';
 
 import { type WorkflowPageParams } from '@/views/workflow-page/workflow-page.types';
 
+import { type WorkflowDiagnosticsIssuesByEventId } from '../../workflow-history.types';
 import WorkflowHistoryGroupDetails from '../workflow-history-group-details';
 import { type GroupDetailsEntries } from '../workflow-history-group-details.types';
 
@@ -24,6 +25,22 @@ jest.mock(
         </div>
       )
     )
+);
+
+jest.mock(
+  '../../workflow-history-event-diagnostics/workflow-history-event-diagnostics',
+  () =>
+    jest.fn(({ issues, getIsIssueExpanded, toggleIsIssueExpanded }) => (
+      <div aria-label="Workflow history event diagnostics">
+        <div>Diagnostics ({issues.length} issues)</div>
+        <div data-testid="diagnostics-has-getter">
+          {typeof getIsIssueExpanded === 'function' ? 'true' : 'false'}
+        </div>
+        <div data-testid="diagnostics-has-toggler">
+          {typeof toggleIsIssueExpanded === 'function' ? 'true' : 'false'}
+        </div>
+      </div>
+    ))
 );
 
 describe(WorkflowHistoryGroupDetails.name, () => {
@@ -335,6 +352,81 @@ describe(WorkflowHistoryGroupDetails.name, () => {
 
     expect(mockOnClickShowInTable).toHaveBeenCalledTimes(1);
   });
+
+  it('renders diagnostics component when issues exist for selected event', () => {
+    setup({
+      groupDetailsEntries: mockGroupDetails,
+      initialEventId: 'event-1',
+      diagnosticsIssuesByEventId: {
+        'event-1': [
+          {
+            issueId: 1,
+            invariantType: 'test',
+            reason: 'test reason',
+            metadata: {},
+          },
+        ],
+      },
+    });
+
+    expect(
+      screen.getByLabelText('Workflow history event diagnostics')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Diagnostics (1 issues)')).toBeInTheDocument();
+  });
+
+  it('does not render diagnostics component when no issues exist', () => {
+    setup({
+      groupDetailsEntries: mockGroupDetails,
+      initialEventId: 'event-1',
+      diagnosticsIssuesByEventId: {},
+    });
+
+    expect(
+      screen.queryByLabelText('Workflow history event diagnostics')
+    ).not.toBeInTheDocument();
+  });
+
+  it('renders diagnostics for Summary tab with all issues from group', () => {
+    const groupDetailsWithSummary: GroupDetailsEntries = [
+      [
+        'summary_1',
+        {
+          eventLabel: 'Summary',
+          eventDetails: [],
+        },
+      ],
+      ...mockGroupDetails,
+    ];
+
+    setup({
+      groupDetailsEntries: groupDetailsWithSummary,
+      initialEventId: 'summary_1',
+      diagnosticsIssuesByEventId: {
+        'event-1': [
+          {
+            issueId: 1,
+            invariantType: 'test1',
+            reason: 'reason1',
+            metadata: {},
+          },
+        ],
+        'event-2': [
+          {
+            issueId: 2,
+            invariantType: 'test2',
+            reason: 'reason2',
+            metadata: {},
+          },
+        ],
+      },
+    });
+
+    expect(
+      screen.getByLabelText('Workflow history event diagnostics')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Diagnostics (2 issues)')).toBeInTheDocument();
+  });
 });
 
 function setup({
@@ -349,6 +441,7 @@ function setup({
   onClose,
   onClickShowInTimeline,
   onClickShowInTable,
+  diagnosticsIssuesByEventId = {},
 }: {
   groupDetailsEntries: GroupDetailsEntries;
   initialEventId?: string;
@@ -356,6 +449,7 @@ function setup({
   onClose?: () => void;
   onClickShowInTimeline?: () => void;
   onClickShowInTable?: () => void;
+  diagnosticsIssuesByEventId?: WorkflowDiagnosticsIssuesByEventId;
 }) {
   const user = userEvent.setup();
 
@@ -367,6 +461,7 @@ function setup({
       onClose={onClose}
       onClickShowInTimeline={onClickShowInTimeline}
       onClickShowInTable={onClickShowInTable}
+      diagnosticsIssuesByEventId={diagnosticsIssuesByEventId}
     />
   );
 
