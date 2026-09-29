@@ -14,12 +14,15 @@ import {
   type DomainData,
   type FilteredDomains,
 } from '../../domains-page.types';
+import filterDomainsBySearchText from '../../helpers/filter-domains-by-search-text';
 import getFilteredDomains from '../../helpers/get-filtered-domains';
 import useFilteredDomains from '../use-filtered-domains';
 
 jest.mock('../../config/domains-page-filters.config', () => [
   { filterFunc: () => true },
 ]);
+
+jest.mock('../../helpers/filter-domains-by-search-text', () => jest.fn());
 
 jest.mock('../../helpers/get-filtered-domains', () => jest.fn());
 
@@ -36,14 +39,9 @@ const mockDomains: Array<DomainData> = [
   getDomainObj({ id: '2', name: 'beta-domain' }),
 ];
 
-const mockPageCtx: DomainsPageContextType = {
-  pageConfig: {
-    CLUSTERS_PUBLIC: [
-      { clusterName: 'cluster-a' },
-      { clusterName: 'cluster-b' },
-    ],
-  },
-};
+const mockPageCtx = {
+  mockContextValue: 'mock',
+} as unknown as DomainsPageContextType;
 
 const mockFilteredDomainsResult: FilteredDomains = {
   filteredDomains: [mockDomains[0]],
@@ -51,7 +49,7 @@ const mockFilteredDomainsResult: FilteredDomains = {
 };
 
 describe(useFilteredDomains.name, () => {
-  it('calls getFilteredDomains with the domains, query params, page context and filters config', () => {
+  it('calls getFilteredDomains with the domains, query params, page context and filter rules', () => {
     setup({ queryParams: { searchText: 'alpha', showDeprecated: true } });
 
     expect(mockGetFilteredDomains).toHaveBeenCalledWith({
@@ -62,7 +60,10 @@ describe(useFilteredDomains.name, () => {
         showDeprecated: true,
       },
       pageCtx: mockPageCtx,
-      filtersConfig: domainsPageFiltersConfig,
+      filterRules: [
+        { filterFunc: filterDomainsBySearchText },
+        ...domainsPageFiltersConfig,
+      ],
     });
   });
 
